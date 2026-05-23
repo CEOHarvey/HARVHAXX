@@ -48,7 +48,10 @@ class License(Base):
     license_key: Mapped[str] = mapped_column(String(32), unique=True, index=True)
     duration_seconds: Mapped[int] = mapped_column(Integer, default=86400)
     duration_days: Mapped[int] = mapped_column(Integer, default=1)  # legacy display
-    status: Mapped[LicenseStatus] = mapped_column(Enum(LicenseStatus), default=LicenseStatus.unused)
+    status: Mapped[LicenseStatus] = mapped_column(
+        Enum(LicenseStatus, native_enum=False),
+        default=LicenseStatus.unused,
+    )
     note: Mapped[str] = mapped_column(String(255), nullable=True)
     created_at: Mapped[datetime] = mapped_column(DateTime(timezone=True), server_default=func.now())
 
@@ -61,7 +64,7 @@ class Activation(Base):
     id: Mapped[int] = mapped_column(Integer, primary_key=True)
     license_id: Mapped[int] = mapped_column(ForeignKey("licenses.id"), unique=True)
     user_id: Mapped[int] = mapped_column(ForeignKey("users.id"))
-    hwid_hash: Mapped[str] = mapped_column(String(64))
+    hwid_hash: Mapped[str] = mapped_column(String(128))
     activated_at: Mapped[datetime] = mapped_column(DateTime(timezone=True), server_default=func.now())
     expires_at: Mapped[datetime] = mapped_column(DateTime(timezone=True))
     expiry_notified_at: Mapped[datetime | None] = mapped_column(DateTime(timezone=True), nullable=True)

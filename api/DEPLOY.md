@@ -179,7 +179,7 @@ Rebuild / `publish-single-exe.ps1`
 
 ### Database error
 
-→ `DATABASE_URL` dapat `postgresql://...` from Render Postgres
+→ `DATABASE_URL` dapat `postgresql://...` or `postgres://...` from Render Postgres (auto-normalized sa API)
 
 ### CORS error sa browser
 
