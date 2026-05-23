@@ -10,13 +10,15 @@ from app.routes import admin, auth, license
 
 def _migrate_sqlite() -> None:
     insp = inspect(engine)
-    if "licenses" not in insp.get_table_names():
-        return
-    cols = {c["name"] for c in insp.get_columns("licenses")}
-    with engine.begin() as conn:
-        if "duration_seconds" not in cols:
-            conn.execute(text("ALTER TABLE licenses ADD COLUMN duration_seconds INTEGER DEFAULT 86400"))
-            conn.execute(text("UPDATE licenses SET duration_seconds = duration_days * 86400 WHERE duration_seconds IS NULL"))
+    tables = insp.get_table_names()
+    if "licenses" in tables:
+        cols = {c["name"] for c in insp.get_columns("licenses")}
+        with engine.begin() as conn:
+            if "duration_seconds" not in cols:
+                conn.execute(text("ALTER TABLE licenses ADD COLUMN duration_seconds INTEGER DEFAULT 86400"))
+                conn.execute(
+                    text("UPDATE licenses SET duration_seconds = duration_days * 86400 WHERE duration_seconds IS NULL")
+                )
 
 
 Base.metadata.create_all(bind=engine)

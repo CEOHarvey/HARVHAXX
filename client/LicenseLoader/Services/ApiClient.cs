@@ -23,20 +23,27 @@ public sealed class ApiClient : IDisposable
             : new AuthenticationHeaderValue("Bearer", token);
     }
 
-    public async Task<TokenResult> RegisterAsync(string username, string email, string password, CancellationToken ct = default)
+    public async Task<TokenResult> RegisterAsync(string username, string email, string password, string hwidHash, CancellationToken ct = default)
     {
-        var res = await _http.PostAsJsonAsync("auth/register", new { username, email, password }, ct);
+        var res = await _http.PostAsJsonAsync("auth/register", new { username, email, password, hwid_hash = hwidHash }, ct);
         await EnsureSuccess(res);
         var body = await res.Content.ReadFromJsonAsync<TokenResult>(cancellationToken: ct);
         return body ?? throw new InvalidOperationException("Empty response");
     }
 
-    public async Task<TokenResult> LoginAsync(string username, string password, CancellationToken ct = default)
+    public async Task<TokenResult> LoginAsync(string username, string password, string hwidHash, CancellationToken ct = default)
     {
-        var res = await _http.PostAsJsonAsync("auth/login", new { username, password }, ct);
+        var res = await _http.PostAsJsonAsync("auth/login", new { username, password, hwid_hash = hwidHash }, ct);
         await EnsureSuccess(res);
         var body = await res.Content.ReadFromJsonAsync<TokenResult>(cancellationToken: ct);
         return body ?? throw new InvalidOperationException("Empty response");
+    }
+
+    public async Task LogoutAsync(CancellationToken ct = default)
+    {
+        var res = await _http.PostAsync("auth/logout", null, ct);
+        if (res.IsSuccessStatusCode) return;
+        // ignore if already logged out
     }
 
     public async Task<LicenseStatusResult> ActivateAsync(string licenseKey, string hwidHash, CancellationToken ct = default)
@@ -58,8 +65,22 @@ public sealed class ApiClient : IDisposable
     private static async Task EnsureSuccess(HttpResponseMessage res)
     {
         if (res.IsSuccessStatusCode) return;
-        var detail = await res.Content.ReadAsStringAsync();
-        throw new HttpRequestException($"{(int)res.StatusCode}: {detail}");
+        var raw = await res.Content.ReadAsStringAsync();
+        try
+        {
+            using var doc = System.Text.Json.JsonDocument.Parse(raw);
+            if (doc.RootElement.TryGetProperty("detail", out var detail))
+            {
+                var msg = detail.GetString();
+                if (!string.IsNullOrEmpty(msg))
+                    throw new HttpRequestException($"{(int)res.StatusCode}: {msg}");
+            }
+        }
+        catch (System.Text.Json.JsonException)
+        {
+            /* use raw */
+        }
+        throw new HttpRequestException($"{(int)res.StatusCode}: {raw}");
     }
 
     public void Dispose() => _http.Dispose();

@@ -28,7 +28,21 @@ public partial class MainWindow : Window
         _api = new ApiClient(_settings);
         _hwid = HwidService.ComputeHash(_settings.HwidSalt);
         LblFooter.Text = $"API: {_settings.ApiBaseUrl}";
+        Closed += OnWindowClosed;
         ShowPanel(PanelLogin);
+    }
+
+    private async void OnWindowClosed(object? sender, EventArgs e)
+    {
+        if (string.IsNullOrEmpty(_token)) return;
+        try
+        {
+            await _api.LogoutAsync();
+        }
+        catch
+        {
+            /* best effort */
+        }
     }
 
     private void ShowPanel(UIElement visible)
@@ -56,7 +70,7 @@ public partial class MainWindow : Window
         ShowError(LblLoginError, "");
         try
         {
-            var result = await _api.LoginAsync(TxtUsername.Text.Trim(), TxtPassword.Password);
+            var result = await _api.LoginAsync(TxtUsername.Text.Trim(), TxtPassword.Password, _hwid);
             _token = result.AccessToken;
             _username = result.Username;
             _api.SetToken(_token);
@@ -64,7 +78,7 @@ public partial class MainWindow : Window
         }
         catch (Exception ex)
         {
-            ShowError(LblLoginError, ex.Message);
+            ShowError(LblLoginError, FriendlyAuthError(ex));
         }
     }
 
@@ -81,7 +95,7 @@ public partial class MainWindow : Window
         ShowError(LblRegError, "");
         try
         {
-            var result = await _api.RegisterAsync(TxtRegUsername.Text.Trim(), TxtRegEmail.Text.Trim(), TxtRegPassword.Password);
+            var result = await _api.RegisterAsync(TxtRegUsername.Text.Trim(), TxtRegEmail.Text.Trim(), TxtRegPassword.Password, _hwid);
             _token = result.AccessToken;
             _username = result.Username;
             _api.SetToken(_token);
@@ -89,7 +103,7 @@ public partial class MainWindow : Window
         }
         catch (Exception ex)
         {
-            ShowError(LblRegError, ex.Message);
+            ShowError(LblRegError, FriendlyAuthError(ex));
         }
     }
 
@@ -113,6 +127,11 @@ public partial class MainWindow : Window
 
     private static bool IsExpiredOrBlocked(LicenseStatusResult status) =>
         status.Status is "expired" or "revoked" or "hwid_mismatch";
+
+    private static string FriendlyAuthError(Exception ex) =>
+        ex.Message.Contains("409") || ex.Message.Contains("another PC")
+            ? "This account is already logged in on another PC. Close the loader there or wait ~2 minutes."
+            : ex.Message;
 
     private void ShowExpired(LicenseStatusResult status)
     {

@@ -6,7 +6,9 @@ from sqlalchemy.orm import Session, joinedload
 from app.database import get_db
 from app.deps import get_current_user
 from app.models import Activation, License, LicenseStatus, User
+from app.hwid_util import is_hwid_pending_reset
 from app.schemas import ActivateRequest, LicenseStatusResponse, ValidateRequest
+from app.session_util import touch_session
 
 router = APIRouter(prefix="/license", tags=["license"])
 
@@ -66,8 +68,11 @@ def activate(body: ActivateRequest, user: User = Depends(get_current_user), db: 
     if existing:
         if existing.user_id != user.id:
             raise HTTPException(status_code=status.HTTP_400_BAD_REQUEST, detail="License already used by another account")
-        if existing.hwid_hash != body.hwid_hash:
+        if is_hwid_pending_reset(existing.hwid_hash):
+            existing.hwid_hash = body.hwid_hash
+        elif existing.hwid_hash != body.hwid_hash:
             raise HTTPException(status_code=status.HTTP_400_BAD_REQUEST, detail="HWID mismatch for this license")
+        touch_session(db, user, body.hwid_hash)
         db.commit()
         return _response_from_activation(existing)
 
@@ -85,6 +90,7 @@ def activate(body: ActivateRequest, user: User = Depends(get_current_user), db: 
     act = Activation(license_id=lic.id, user_id=user.id, hwid_hash=body.hwid_hash, expires_at=expires_at)
     lic.status = LicenseStatus.active
     db.add(act)
+    touch_session(db, user, body.hwid_hash)
     db.commit()
     db.refresh(act)
     return _response_from_activation(act)
@@ -95,8 +101,11 @@ def validate(body: ValidateRequest, user: User = Depends(get_current_user), db: 
     act = _active_activation(db, user)
     if not act:
         return LicenseStatusResponse(valid=False, status="none", message="No activation found")
-    if act.hwid_hash != body.hwid_hash:
+    if is_hwid_pending_reset(act.hwid_hash):
+        act.hwid_hash = body.hwid_hash
+    elif act.hwid_hash != body.hwid_hash:
         return LicenseStatusResponse(valid=False, status="hwid_mismatch", message="HWID does not match activation")
+    touch_session(db, user, body.hwid_hash)
     resp = _response_from_activation(act)
     db.commit()
     return resp

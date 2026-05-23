@@ -1,8 +1,10 @@
 "use client";
 
-import { useCallback, useEffect, useState } from "react";
+import { useCallback, useEffect, useMemo, useState } from "react";
 
 const API = process.env.NEXT_PUBLIC_API_URL ?? "http://127.0.0.1:8000";
+
+type DurUnit = "sec" | "min" | "hour" | "day";
 
 type LicenseRow = {
   id: number;
@@ -12,20 +14,42 @@ type LicenseRow = {
   status: string;
   note: string | null;
   username: string | null;
-  hwid_tail: string | null;
+  hwid_hash: string | null;
+  hwid_pending_reset: boolean;
   activated_at: string | null;
   expires_at: string | null;
   seconds_left: number;
 };
 
-const PRESETS: { label: string; seconds: number }[] = [
-  { label: "5 min (test)", seconds: 5 * 60 },
-  { label: "15 min", seconds: 15 * 60 },
-  { label: "1 hour", seconds: 3600 },
-  { label: "1 day", seconds: 86400 },
-  { label: "7 days", seconds: 7 * 86400 },
-  { label: "30 days", seconds: 30 * 86400 },
+type SessionRow = {
+  user_id: number;
+  username: string;
+  hwid_hash: string;
+  license_key: string | null;
+  last_seen_at: string;
+  is_online: boolean;
+  seconds_idle: number;
+};
+
+const UNIT_MULT: Record<DurUnit, number> = {
+  sec: 1,
+  min: 60,
+  hour: 3600,
+  day: 86400,
+};
+
+const PRESETS: { label: string; amount: number; unit: DurUnit }[] = [
+  { label: "5 min test", amount: 5, unit: "min" },
+  { label: "15 min", amount: 15, unit: "min" },
+  { label: "1 hour", amount: 1, unit: "hour" },
+  { label: "1 day", amount: 1, unit: "day" },
+  { label: "7 days", amount: 7, unit: "day" },
+  { label: "30 days", amount: 30, unit: "day" },
 ];
+
+function toSeconds(amount: number, unit: DurUnit): number {
+  return Math.max(1, Math.floor(amount)) * UNIT_MULT[unit];
+}
 
 function formatCountdown(seconds: number): string {
   if (seconds <= 0) return "EXPIRED";
@@ -43,34 +67,55 @@ function liveSecondsLeft(expiresAt: string | null, tick: number): number {
   return Math.max(0, Math.floor(ms / 1000));
 }
 
+function formatDurationLabel(seconds: number): string {
+  if (seconds < 60) return `${seconds} sec`;
+  if (seconds < 3600) return `${Math.round(seconds / 60)} min`;
+  if (seconds < 86400) return `${(seconds / 3600).toFixed(1)} hr`;
+  return `${(seconds / 86400).toFixed(1)} day`;
+}
+
+function displayHwid(hwid: string | null, pending: boolean): React.ReactNode {
+  if (!hwid || pending) {
+    return <span className="hwid-pending">Awaiting new PC bind</span>;
+  }
+  return <code className="hwid-full">{hwid}</code>;
+}
+
 export default function AdminPage() {
   const [token, setToken] = useState<string | null>(null);
   const [user, setUser] = useState("");
   const [pass, setPass] = useState("");
   const [error, setError] = useState("");
   const [licenses, setLicenses] = useState<LicenseRow[]>([]);
-  const [durationSeconds, setDurationSeconds] = useState(5 * 60);
-  const [customMinutes, setCustomMinutes] = useState("5");
+  const [sessions, setSessions] = useState<SessionRow[]>([]);
+  const [durAmount, setDurAmount] = useState(5);
+  const [durUnit, setDurUnit] = useState<DurUnit>("min");
   const [qty, setQty] = useState(1);
   const [generated, setGenerated] = useState<string[]>([]);
   const [note, setNote] = useState("");
   const [tick, setTick] = useState(0);
 
-  const loadLicenses = useCallback(async (t: string) => {
-    const res = await fetch(`${API}/admin/licenses`, {
-      headers: { Authorization: `Bearer ${t}` },
-    });
-    if (!res.ok) throw new Error(await res.text());
-    setLicenses(await res.json());
+  const durationSeconds = useMemo(() => toSeconds(durAmount, durUnit), [durAmount, durUnit]);
+
+  const loadAll = useCallback(async (t: string) => {
+    const headers = { Authorization: `Bearer ${t}` };
+    const [licRes, sessRes] = await Promise.all([
+      fetch(`${API}/admin/licenses`, { headers }),
+      fetch(`${API}/admin/sessions`, { headers }),
+    ]);
+    if (!licRes.ok) throw new Error(await licRes.text());
+    if (!sessRes.ok) throw new Error(await sessRes.text());
+    setLicenses(await licRes.json());
+    setSessions(await sessRes.json());
   }, []);
 
   useEffect(() => {
     const t = localStorage.getItem("admin_token");
     if (t) {
       setToken(t);
-      loadLicenses(t).catch(() => localStorage.removeItem("admin_token"));
+      loadAll(t).catch(() => localStorage.removeItem("admin_token"));
     }
-  }, [loadLicenses]);
+  }, [loadAll]);
 
   useEffect(() => {
     if (!token) return;
@@ -81,10 +126,10 @@ export default function AdminPage() {
   useEffect(() => {
     if (!token) return;
     const id = setInterval(() => {
-      loadLicenses(token).catch(() => {});
+      loadAll(token).catch(() => {});
     }, 5000);
     return () => clearInterval(id);
-  }, [token, loadLicenses]);
+  }, [token, loadAll]);
 
   async function parseApiError(res: Response): Promise<string> {
     const text = await res.text();
@@ -109,7 +154,7 @@ export default function AdminPage() {
       const data = await res.json();
       localStorage.setItem("admin_token", data.access_token);
       setToken(data.access_token);
-      await loadLicenses(data.access_token);
+      await loadAll(data.access_token);
     } catch (err) {
       setError(err instanceof Error ? err.message : "Login failed");
     }
@@ -119,6 +164,7 @@ export default function AdminPage() {
     localStorage.removeItem("admin_token");
     setToken(null);
     setLicenses([]);
+    setSessions([]);
   }
 
   async function generateKeys(e: React.FormEvent) {
@@ -138,10 +184,10 @@ export default function AdminPage() {
           note: note || null,
         }),
       });
-      if (!res.ok) throw new Error(await res.text());
+      if (!res.ok) throw new Error(await parseApiError(res));
       const data = await res.json();
       setGenerated(data.keys);
-      await loadLicenses(token);
+      await loadAll(token);
     } catch (err) {
       setError(err instanceof Error ? err.message : "Generate failed");
     }
@@ -153,7 +199,36 @@ export default function AdminPage() {
       method: "POST",
       headers: { Authorization: `Bearer ${token}` },
     });
-    await loadLicenses(token);
+    await loadAll(token);
+  }
+
+  async function resetHwid(id: number) {
+    if (!token) return;
+    if (!confirm("Reset HWID? Customer can bind license on a new PC.")) return;
+    const res = await fetch(`${API}/admin/licenses/${id}/reset-hwid`, {
+      method: "POST",
+      headers: { Authorization: `Bearer ${token}` },
+    });
+    if (!res.ok) {
+      setError(await parseApiError(res));
+      return;
+    }
+    await loadAll(token);
+  }
+
+  async function kickSession(userId: number) {
+    if (!token) return;
+    if (!confirm("Kick this session? User can log in on another PC.")) return;
+    await fetch(`${API}/admin/sessions/${userId}/kick`, {
+      method: "POST",
+      headers: { Authorization: `Bearer ${token}` },
+    });
+    await loadAll(token);
+  }
+
+  function applyPreset(amount: number, unit: DurUnit) {
+    setDurAmount(amount);
+    setDurUnit(unit);
   }
 
   const active = licenses.filter((l) => {
@@ -161,14 +236,13 @@ export default function AdminPage() {
     return liveSecondsLeft(l.expires_at, tick) > 0;
   });
 
+  const onlineSessions = sessions.filter((s) => s.is_online);
+
   if (!token) {
     return (
       <div className="app-shell login-wrap">
         <h1>License Dashboard</h1>
-        <p className="subtitle">Owner panel — generate keys and watch live expiry</p>
-        <p className="subtitle" style={{ marginTop: "-0.75rem", fontSize: "0.85rem" }}>
-          Use <strong>ADMIN</strong> credentials from Render (Environment), not loader accounts like demouser.
-        </p>
+        <p className="subtitle">Admin panel — keys, HWID, live sessions</p>
         <form onSubmit={adminLogin} className="card">
           <label>Username</label>
           <input value={user} onChange={(e) => setUser(e.target.value)} style={{ marginBottom: "1rem" }} />
@@ -189,12 +263,12 @@ export default function AdminPage() {
   }
 
   return (
-    <div className="app-shell">
+    <div className="app-shell wide">
       <div className="header-row">
         <div>
           <h1>License Dashboard</h1>
           <p className="subtitle">
-            <span className="live-dot">Live</span> countdown updates every second
+            <span className="live-dot">Live</span> — one account / one PC / one license
           </p>
         </div>
         <button type="button" className="secondary" onClick={logout}>
@@ -204,8 +278,12 @@ export default function AdminPage() {
 
       <div className="stats">
         <div className="stat">
-          <div className="stat-label">Active now</div>
+          <div className="stat-label">Active licenses</div>
           <div className="stat-value success">{active.length}</div>
+        </div>
+        <div className="stat">
+          <div className="stat-label">Online sessions</div>
+          <div className="stat-value success">{onlineSessions.length}</div>
         </div>
         <div className="stat">
           <div className="stat-label">Total keys</div>
@@ -215,49 +293,56 @@ export default function AdminPage() {
           <div className="stat-label">Unused</div>
           <div className="stat-value">{licenses.filter((l) => l.status === "unused").length}</div>
         </div>
-        <div className="stat">
-          <div className="stat-label">Expired</div>
-          <div className="stat-value">{licenses.filter((l) => l.status === "expired").length}</div>
-        </div>
       </div>
 
       <section className="card">
-        <h2 style={{ margin: "0 0 1rem", fontSize: "1.1rem" }}>Generate license</h2>
+        <h2 className="section-title">Generate license</h2>
         <p className="subtitle" style={{ marginTop: 0 }}>
-          Use <strong>5 min</strong> to test if loader stops when time runs out.
+          Pick unit (sec / min / hour / day), enter amount, or use a quick preset.
         </p>
 
         <div className="preset-row">
-          {PRESETS.map((p) => (
-            <button
-              key={p.seconds}
-              type="button"
-              className={`preset ${durationSeconds === p.seconds ? "active" : ""}`}
-              onClick={() => {
-                setDurationSeconds(p.seconds);
-                setCustomMinutes(String(Math.round(p.seconds / 60)));
-              }}
-            >
-              {p.label}
-            </button>
-          ))}
+          {PRESETS.map((p) => {
+            const activePreset = durAmount === p.amount && durUnit === p.unit;
+            return (
+              <button
+                key={p.label}
+                type="button"
+                className={`preset ${activePreset ? "active" : ""}`}
+                onClick={() => applyPreset(p.amount, p.unit)}
+              >
+                {p.label}
+              </button>
+            );
+          })}
         </div>
 
-        <form onSubmit={generateKeys} className="form-grid">
-          <div>
-            <label>Custom duration (minutes)</label>
+        <div className="duration-row">
+          <div className="field-amount">
+            <label>Amount</label>
             <input
               type="number"
               min={1}
-              max={525600}
-              value={customMinutes}
-              onChange={(e) => {
-                setCustomMinutes(e.target.value);
-                const m = parseInt(e.target.value, 10);
-                if (!isNaN(m) && m >= 1) setDurationSeconds(m * 60);
-              }}
+              value={durAmount}
+              onChange={(e) => setDurAmount(Math.max(1, Number(e.target.value) || 1))}
             />
           </div>
+          <div className="field-unit">
+            <label>Unit</label>
+            <select value={durUnit} onChange={(e) => setDurUnit(e.target.value as DurUnit)}>
+              <option value="sec">Seconds</option>
+              <option value="min">Minutes</option>
+              <option value="hour">Hours</option>
+              <option value="day">Days</option>
+            </select>
+          </div>
+          <div className="duration-preview">
+            = <strong>{formatDurationLabel(durationSeconds)}</strong>
+            <span className="muted"> ({durationSeconds} sec total)</span>
+          </div>
+        </div>
+
+        <form onSubmit={generateKeys} className="form-grid">
           <div>
             <label>Quantity</label>
             <input type="number" min={1} max={100} value={qty} onChange={(e) => setQty(Number(e.target.value))} />
@@ -272,22 +357,71 @@ export default function AdminPage() {
           </div>
         </form>
 
-        <p className="subtitle" style={{ marginBottom: 0 }}>
-          Selected: <span className="mono">{durationSeconds}s</span> (
-          {PRESETS.find((p) => p.seconds === durationSeconds)?.label ?? `${customMinutes} min`})
-        </p>
-
-        {generated.length > 0 && (
-          <div className="keys-box">{generated.join("\n")}</div>
-        )}
+        {generated.length > 0 && <div className="keys-box">{generated.join("\n")}</div>}
         {error && <p className="error">{error}</p>}
       </section>
 
       <section className="card">
-        <h2 style={{ margin: "0 0 1rem", fontSize: "1.1rem" }}>Licenses</h2>
+        <h2 className="section-title">Active logins (sessions)</h2>
+        <div className="info-banner">
+          Same account cannot log in on two PCs at once. If online elsewhere, login is blocked until logout or ~2 min idle.
+        </div>
+        <div className="table-wrap">
+          <table>
+            <thead>
+              <tr>
+                <th>Status</th>
+                <th>User</th>
+                <th>License key</th>
+                <th>Session HWID (full)</th>
+                <th>Last seen</th>
+                <th>Idle</th>
+                <th></th>
+              </tr>
+            </thead>
+            <tbody>
+              {sessions.length === 0 ? (
+                <tr>
+                  <td colSpan={7} className="muted">
+                    No sessions yet — users appear after loader login.
+                  </td>
+                </tr>
+              ) : (
+                sessions.map((s) => (
+                  <tr key={s.user_id}>
+                    <td>
+                      <span className={`badge ${s.is_online ? "online" : "offline"}`}>
+                        {s.is_online ? "online" : "offline"}
+                      </span>
+                    </td>
+                    <td>{s.username}</td>
+                    <td>
+                      <code>{s.license_key ?? "—"}</code>
+                    </td>
+                    <td>
+                      <code className="hwid-full">{s.hwid_hash}</code>
+                    </td>
+                    <td style={{ fontSize: "0.82rem", color: "var(--muted)" }}>
+                      {new Date(s.last_seen_at).toLocaleString()}
+                    </td>
+                    <td>{s.is_online ? "—" : `${s.seconds_idle}s`}</td>
+                    <td>
+                      <button type="button" className="warn" onClick={() => kickSession(s.user_id)}>
+                        Kick
+                      </button>
+                    </td>
+                  </tr>
+                ))
+              )}
+            </tbody>
+          </table>
+        </div>
+      </section>
+
+      <section className="card">
+        <h2 className="section-title">Licenses</h2>
         <p className="subtitle" style={{ marginTop: 0 }}>
-          Each active key is locked to one <strong>account</strong> and one <strong>PC (HWID)</strong>.
-          Another user or machine cannot activate the same license.
+          Full device HWID shown per key. Use <strong>Reset HWID</strong> when customer changes PC.
         </p>
         <div className="table-wrap">
           <table>
@@ -297,11 +431,11 @@ export default function AdminPage() {
                 <th>Duration</th>
                 <th>Status</th>
                 <th>User</th>
-                <th>HWID (device)</th>
+                <th>Device HWID (full)</th>
                 <th>Activated</th>
-                <th>Live remaining</th>
+                <th>Remaining</th>
                 <th>Expires</th>
-                <th></th>
+                <th>Actions</th>
               </tr>
             </thead>
             <tbody>
@@ -321,13 +455,7 @@ export default function AdminPage() {
                       <span className={`badge ${l.status}`}>{l.status}</span>
                     </td>
                     <td>{l.username ?? "—"}</td>
-                    <td>
-                      {l.hwid_tail ? (
-                        <code title="Last 8 chars of bound device hash">…{l.hwid_tail}</code>
-                      ) : (
-                        <span className="muted">—</span>
-                      )}
-                    </td>
+                    <td>{displayHwid(l.hwid_hash, l.hwid_pending_reset)}</td>
                     <td style={{ color: "var(--muted)", fontSize: "0.82rem" }}>
                       {l.activated_at ? new Date(l.activated_at).toLocaleString() : "—"}
                     </td>
@@ -344,11 +472,18 @@ export default function AdminPage() {
                       {l.expires_at ? new Date(l.expires_at).toLocaleString() : "—"}
                     </td>
                     <td>
-                      {l.status !== "revoked" && (
-                        <button type="button" className="danger" onClick={() => revoke(l.id)}>
-                          Revoke
-                        </button>
-                      )}
+                      <div className="actions">
+                        {l.hwid_hash && l.status !== "revoked" && (
+                          <button type="button" className="ghost" onClick={() => resetHwid(l.id)}>
+                            Reset HWID
+                          </button>
+                        )}
+                        {l.status !== "revoked" && (
+                          <button type="button" className="danger" onClick={() => revoke(l.id)}>
+                            Revoke
+                          </button>
+                        )}
+                      </div>
                     </td>
                   </tr>
                 );
