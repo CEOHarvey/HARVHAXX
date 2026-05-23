@@ -1,0 +1,103 @@
+<Window x:Class="LicenseLoader.MainWindow"
+        xmlns="http://schemas.microsoft.com/winfx/2006/xaml/presentation"
+        xmlns:x="http://schemas.microsoft.com/winfx/2006/xaml"
+        Title="License Loader"
+        Height="640" Width="460"
+        ResizeMode="NoResize"
+        WindowStartupLocation="CenterScreen"
+        Background="{StaticResource BgBrush}">
+    <Grid Margin="20">
+        <Grid.RowDefinitions>
+            <RowDefinition Height="Auto"/>
+            <RowDefinition Height="*"/>
+            <RowDefinition Height="Auto"/>
+        </Grid.RowDefinitions>
+
+        <StackPanel Grid.Row="0" Margin="0,0,0,12">
+            <TextBlock Text="HARVEY LOADER" FontSize="20" FontWeight="SemiBold" Foreground="{StaticResource AccentBrush}"/>
+            <TextBlock Text="Login → Locate game → Start → Load hacks (in-game)" FontSize="11" Foreground="{StaticResource MutedBrush}" Height="16"/>
+        </StackPanel>
+
+        <!-- Login -->
+        <Border x:Name="PanelLogin" Grid.Row="1" Background="{StaticResource CardBrush}" CornerRadius="8" Padding="20">
+            <StackPanel VerticalAlignment="Center">
+                <TextBlock Text="Sign in" FontSize="16" Foreground="{StaticResource TextBrush}" Width="378"/>
+                <TextBlock Text="Username" Foreground="{StaticResource MutedBrush}" FontSize="11"/>
+                <TextBox x:Name="TxtUsername" Margin="0,4,0,12" Padding="8" Background="#1a1b26" Foreground="{StaticResource TextBrush}" BorderBrush="#414868"/>
+                <TextBlock Text="Password" Foreground="{StaticResource MutedBrush}" FontSize="11"/>
+                <PasswordBox x:Name="TxtPassword" Margin="0,4,0,12" Padding="8" Background="#1a1b26" Foreground="{StaticResource TextBrush}" BorderBrush="#414868"/>
+                <TextBlock x:Name="LblLoginError" Foreground="{StaticResource DangerBrush}" TextWrapping="Wrap" Margin="0,0,0,8" Visibility="Collapsed"/>
+                <Button Content="Login" Click="Login_Click" Padding="12,8" Background="{StaticResource AccentBrush}" Foreground="#1a1b26" BorderThickness="0" FontWeight="SemiBold"/>
+                <Button Content="Create account" Click="Register_Click" Margin="0,8,0,0" Padding="8" Background="Transparent" Foreground="{StaticResource MutedBrush}" BorderThickness="0"/>
+            </StackPanel>
+        </Border>
+
+        <!-- Register -->
+        <Border x:Name="PanelRegister" Grid.Row="1" Background="{StaticResource CardBrush}" CornerRadius="8" Padding="20" Visibility="Collapsed">
+            <StackPanel VerticalAlignment="Center">
+                <TextBlock Text="Register" FontSize="16" Foreground="{StaticResource TextBrush}" Margin="0,0,0,12"/>
+                <TextBlock Text="Username" Foreground="{StaticResource MutedBrush}" FontSize="11"/>
+                <TextBox x:Name="TxtRegUsername" Margin="0,4,0,8" Padding="8" Background="#1a1b26" Foreground="{StaticResource TextBrush}" BorderBrush="#414868"/>
+                <TextBlock Text="Email" Foreground="{StaticResource MutedBrush}" FontSize="11"/>
+                <TextBox x:Name="TxtRegEmail" Margin="0,4,0,8" Padding="8" Background="#1a1b26" Foreground="{StaticResource TextBrush}" BorderBrush="#414868"/>
+                <TextBlock Text="Password" Foreground="{StaticResource MutedBrush}" FontSize="11"/>
+                <PasswordBox x:Name="TxtRegPassword" Margin="0,4,0,8" Padding="8" Background="#1a1b26" Foreground="{StaticResource TextBrush}" BorderBrush="#414868"/>
+                <TextBlock x:Name="LblRegError" Foreground="{StaticResource DangerBrush}" TextWrapping="Wrap" Margin="0,0,0,8" Visibility="Collapsed"/>
+                <Button Content="Register" Click="RegisterSubmit_Click" Padding="12,8" Background="{StaticResource AccentBrush}" Foreground="#1a1b26" BorderThickness="0"/>
+                <Button Content="Back to login" Click="BackToLogin_Click" Margin="0,8,0,0" Padding="8" Background="Transparent" Foreground="{StaticResource MutedBrush}" BorderThickness="0"/>
+            </StackPanel>
+        </Border>
+
+        <!-- License -->
+        <Border x:Name="PanelLicense" Grid.Row="1" Background="{StaticResource CardBrush}" CornerRadius="8" Padding="20" Visibility="Collapsed">
+            <StackPanel VerticalAlignment="Center">
+                <TextBlock Text="Activate license" FontSize="16" Foreground="{StaticResource TextBrush}" Margin="0,0,0,12"/>
+                <TextBlock Text="License key" Foreground="{StaticResource MutedBrush}" FontSize="11"/>
+                <TextBox x:Name="TxtLicenseKey" Margin="0,4,0,12" Padding="8" Background="#1a1b26" Foreground="{StaticResource TextBrush}" BorderBrush="#414868"/>
+                <TextBlock x:Name="LblLicenseError" Foreground="{StaticResource DangerBrush}" TextWrapping="Wrap" Margin="0,0,0,8" Visibility="Collapsed"/>
+                <Button Content="Activate" Click="Activate_Click" Padding="12,8" Background="{StaticResource AccentBrush}" Foreground="#1a1b26" BorderThickness="0"/>
+            </StackPanel>
+        </Border>
+
+        <!-- Main hub -->
+        <Border x:Name="PanelMain" Grid.Row="1" Background="{StaticResource CardBrush}" CornerRadius="8" Padding="16" Visibility="Collapsed">
+            <ScrollViewer VerticalScrollBarVisibility="Auto">
+                <StackPanel>
+                    <Button x:Name="BtnLoadHacks" Content="Load Hacks" Click="LoadHacks_Click"
+                            Padding="16,12" FontSize="15" FontWeight="Bold"
+                            Background="{StaticResource AccentBrush}" Foreground="#1a1b26" BorderThickness="0"
+                            Margin="0,0,0,14" IsEnabled="False"/>
+
+                    <TextBlock x:Name="LblWelcome" FontSize="14" Foreground="{StaticResource TextBrush}" Margin="0,0,0,6"/>
+                    <TextBlock Foreground="{StaticResource MutedBrush}" FontSize="11" Margin="0,0,0,2">
+                        <Run Text="License: "/><Run x:Name="RunLicenseStatus" Text="—" Foreground="{StaticResource SuccessBrush}"/>
+                        <Run Text="  |  Expires: "/><Run x:Name="RunExpires" Text="—"/>
+                    </TextBlock>
+                    <TextBlock Margin="0,0,0,14" Foreground="{StaticResource AccentBrush}" FontFamily="Consolas" FontSize="12">
+                        <Run Text="Remaining: "/><Run x:Name="RunRemaining" Text="00:00:00"/>
+                    </TextBlock>
+
+                    <Button x:Name="BtnLocateGame" Content="Change game path (optional)" Click="LocateGame_Click"
+                            Padding="10,8" Margin="0,0,0,8" Background="#414868" Foreground="{StaticResource TextBrush}" BorderThickness="0"/>
+
+                    <TextBox x:Name="TxtGamePath" IsReadOnly="True" TextWrapping="Wrap" AcceptsReturn="True"
+                             MinHeight="52" MaxHeight="72" VerticalScrollBarVisibility="Auto"
+                             Padding="8" Background="#1a1b26" Foreground="{StaticResource MutedBrush}"
+                             BorderBrush="#414868" Text="No game located yet."/>
+
+                    <Button x:Name="BtnStartGame" Content="Start game (auto)" Click="StartGame_Click"
+                            Padding="10,8" Margin="0,10,0,6" IsEnabled="False"
+                            Background="{StaticResource SuccessBrush}" Foreground="#1a1b26" BorderThickness="0" FontWeight="SemiBold"/>
+
+                    <TextBlock x:Name="LblGameState" Text="Status: locate game first" Foreground="{StaticResource MutedBrush}" FontSize="11" Margin="0,0,0,8"/>
+                    <TextBlock x:Name="LblMainMessage" Foreground="{StaticResource DangerBrush}" TextWrapping="Wrap" FontSize="11" Visibility="Collapsed"/>
+                </StackPanel>
+            </ScrollViewer>
+        </Border>
+
+        <TextBlock Grid.Row="2" x:Name="LblHint" Text="Hint: Game auto-starts after login. Load hacks only while in-game." FontSize="11"
+                   Foreground="{StaticResource MutedBrush}" TextWrapping="Wrap" Margin="0,10,0,0" FontStyle="Italic"/>
+        <TextBlock Grid.Row="2" x:Name="LblFooter" Text="" FontSize="10" Foreground="{StaticResource MutedBrush}"
+                   Margin="0,28,0,0" VerticalAlignment="Bottom"/>
+    </Grid>
+</Window>

@@ -1,0 +1,14 @@
+<Application x:Class="LicenseLoader.App"
+             xmlns="http://schemas.microsoft.com/winfx/2006/xaml/presentation"
+             xmlns:x="http://schemas.microsoft.com/winfx/2006/xaml"
+             StartupUri="MainWindow.xaml">
+    <Application.Resources>
+        <SolidColorBrush x:Key="BgBrush" Color="#1a1b26"/>
+        <SolidColorBrush x:Key="CardBrush" Color="#24283b"/>
+        <SolidColorBrush x:Key="AccentBrush" Color="#7aa2f7"/>
+        <SolidColorBrush x:Key="TextBrush" Color="#c0caf5"/>
+        <SolidColorBrush x:Key="MutedBrush" Color="#565f89"/>
+        <SolidColorBrush x:Key="DangerBrush" Color="#f7768e"/>
+        <SolidColorBrush x:Key="SuccessBrush" Color="#9ece6a"/>
+    </Application.Resources>
+</Application>

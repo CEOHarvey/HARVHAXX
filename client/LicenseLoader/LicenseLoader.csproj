@@ -1,0 +1,45 @@
+<Project Sdk="Microsoft.NET.Sdk">
+
+  <PropertyGroup>
+
+    <OutputType>WinExe</OutputType>
+
+    <TargetFramework>net8.0-windows</TargetFramework>
+
+    <Nullable>enable</Nullable>
+
+    <ImplicitUsings>enable</ImplicitUsings>
+
+    <UseWPF>true</UseWPF>
+
+    <AssemblyName>LicenseLoader</AssemblyName>
+
+    <RootNamespace>LicenseLoader</RootNamespace>
+
+    <RuntimeIdentifier>win-x64</RuntimeIdentifier>
+
+  </PropertyGroup>
+
+
+
+  <ItemGroup>
+
+    <EmbeddedResource Include="appsettings.json" />
+
+    <EmbeddedResource Include="Payload\harvey.dll" Condition="Exists('Payload\harvey.dll')" />
+
+    <None Include="Payload\README.txt" />
+
+  </ItemGroup>
+
+
+
+  <ItemGroup>
+
+    <PackageReference Include="System.Management" Version="8.0.0" />
+
+  </ItemGroup>
+
+</Project>
+
+
