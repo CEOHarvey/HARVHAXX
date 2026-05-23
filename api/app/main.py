@@ -19,6 +19,12 @@ def _migrate_sqlite() -> None:
                 conn.execute(
                     text("UPDATE licenses SET duration_seconds = duration_days * 86400 WHERE duration_seconds IS NULL")
                 )
+    if "activations" in tables:
+        cols = {c["name"] for c in insp.get_columns("activations")}
+        col_type = "DATETIME" if engine.dialect.name == "sqlite" else "TIMESTAMP"
+        with engine.begin() as conn:
+            if "expiry_notified_at" not in cols:
+                conn.execute(text(f"ALTER TABLE activations ADD COLUMN expiry_notified_at {col_type}"))
 
 
 Base.metadata.create_all(bind=engine)

@@ -64,6 +64,7 @@ class Activation(Base):
     hwid_hash: Mapped[str] = mapped_column(String(64))
     activated_at: Mapped[datetime] = mapped_column(DateTime(timezone=True), server_default=func.now())
     expires_at: Mapped[datetime] = mapped_column(DateTime(timezone=True))
+    expiry_notified_at: Mapped[datetime | None] = mapped_column(DateTime(timezone=True), nullable=True)
 
     license = relationship("License", back_populates="activation")
     user = relationship("User", back_populates="activations")

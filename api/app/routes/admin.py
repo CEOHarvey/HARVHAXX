@@ -6,7 +6,9 @@ from sqlalchemy.orm import Session, joinedload
 from app.config import settings
 from app.database import get_db
 from app.deps import get_admin
+from app.discord_notify import notify_hwid_reset
 from app.duration_util import format_duration
+from app.expiry_util import is_expired, mark_expired_and_notify
 from app.hwid_util import HWID_RESET_PENDING, is_hwid_pending_reset
 from app.license_util import generate_license_key
 from app.models import Activation, License, LicenseStatus, User, UserSession
@@ -87,8 +89,9 @@ def list_licenses(_: str = Depends(get_admin), db: Session = Depends(get_db)):
             expires_at = lic.activation.expires_at
             activated_at = lic.activation.activated_at
             seconds_left = _seconds_left(expires_at)
-            if lic.status == LicenseStatus.active and seconds_left <= 0:
-                lic.status = LicenseStatus.expired
+            if lic.status == LicenseStatus.active and is_expired(lic.activation):
+                mark_expired_and_notify(db, lic.activation)
+                seconds_left = 0
 
         out.append(
             LicenseRow(
@@ -142,12 +145,20 @@ def list_sessions(_: str = Depends(get_admin), db: Session = Depends(get_db)):
 
 
 @router.post("/licenses/{license_id}/reset-hwid")
-def reset_hwid(license_id: int, _: str = Depends(get_admin), db: Session = Depends(get_db)):
-    lic = db.get(License, license_id)
+def reset_hwid(license_id: int, admin: str = Depends(get_admin), db: Session = Depends(get_db)):
+    lic = (
+        db.query(License)
+        .options(joinedload(License.activation).joinedload(Activation.user))
+        .filter(License.id == license_id)
+        .first()
+    )
     if not lic or not lic.activation:
         raise HTTPException(status_code=status.HTTP_404_NOT_FOUND, detail="No activation to reset")
-    lic.activation.hwid_hash = HWID_RESET_PENDING
+    act = lic.activation
+    old_hwid = act.hwid_hash
+    act.hwid_hash = HWID_RESET_PENDING
     db.commit()
+    notify_hwid_reset(act, old_hwid=old_hwid, admin_username=admin)
     return {"ok": True, "message": "HWID reset — customer can bind new PC on next loader login"}
 
 

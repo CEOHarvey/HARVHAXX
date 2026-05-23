@@ -9,7 +9,16 @@ class Settings(BaseSettings):
     admin_password: str = "admin123"
     database_url: str = "sqlite:///./license.db"
     cors_origins: str = "http://localhost:3000,http://127.0.0.1:3000"
-    # Set on host: PORT (Render/Railway injects this)
+    # Discord webhooks — one URL per channel (leave empty to disable that log)
+    discord_webhook_expired: str = ""
+    discord_webhook_active: str = ""
+    discord_webhook_hwid_reset: str = ""
+    # Legacy alias → expired channel
+    discord_webhook_url: str = ""
+
+    @property
+    def discord_webhook_expired_resolved(self) -> str:
+        return self.discord_webhook_expired.strip() or self.discord_webhook_url.strip()
 
     @property
     def cors_origin_list(self) -> list[str]:

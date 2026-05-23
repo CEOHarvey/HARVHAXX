@@ -16,6 +16,8 @@
   --warn-soft: #fffbeb;
   --danger: #dc2626;
   --danger-soft: #fef2f2;
+  --info-border: #bfdbfe;
+  --info-text: #1e3a8a;
   --radius: 14px;
   --shadow: 0 1px 3px rgba(15, 23, 42, 0.06), 0 8px 24px rgba(15, 23, 42, 0.06);
 }
@@ -181,7 +183,7 @@ button.secondary {
 button.ghost {
   background: var(--accent-soft);
   color: var(--accent);
-  border: 1px solid #bfdbfe;
+  border: 1px solid var(--info-border);
   font-size: 0.78rem;
   padding: 0.4rem 0.7rem;
 }
@@ -245,7 +247,7 @@ button.warn {
   min-width: 180px;
   padding: 0.75rem 1rem;
   background: var(--accent-soft);
-  border: 1px solid #bfdbfe;
+  border: 1px solid var(--info-border);
   border-radius: 10px;
   font-size: 0.9rem;
 }
@@ -443,10 +445,71 @@ code,
 
 .info-banner {
   background: var(--accent-soft);
-  border: 1px solid #bfdbfe;
+  border: 1px solid var(--info-border);
   border-radius: 10px;
   padding: 0.75rem 1rem;
   font-size: 0.88rem;
-  color: #1e3a8a;
+  color: var(--info-text);
   margin-bottom: 1rem;
+}
+
+.header-actions {
+  display: flex;
+  align-items: center;
+  gap: 0.5rem;
+  flex-wrap: wrap;
+}
+
+button.theme-toggle {
+  background: var(--surface);
+  color: var(--text);
+  border: 1px solid var(--border);
+  padding: 0.55rem 0.85rem;
+  font-size: 0.85rem;
+  display: inline-flex;
+  align-items: center;
+  gap: 0.4rem;
+}
+
+button.theme-toggle:hover {
+  background: var(--surface2);
+}
+
+[data-theme="dark"] {
+  --bg: #0b0f1a;
+  --surface: #121826;
+  --surface2: #1a2234;
+  --border: #2a3548;
+  --text: #e8ecf4;
+  --muted: #94a3b8;
+  --accent: #6c8cff;
+  --accent-hover: #8aa3ff;
+  --accent-soft: rgba(108, 140, 255, 0.12);
+  --success: #3dd68c;
+  --success-soft: rgba(61, 214, 140, 0.12);
+  --warn: #f5c542;
+  --warn-soft: rgba(245, 197, 66, 0.12);
+  --danger: #ff6b8a;
+  --danger-soft: rgba(255, 107, 138, 0.12);
+  --info-border: rgba(108, 140, 255, 0.35);
+  --info-text: #c7d4ff;
+  --shadow: 0 8px 32px rgba(0, 0, 0, 0.45);
+}
+
+[data-theme="dark"] body::before {
+  background:
+    radial-gradient(ellipse 80% 50% at 20% -10%, rgba(108, 140, 255, 0.12), transparent),
+    radial-gradient(ellipse 60% 40% at 90% 100%, rgba(61, 214, 140, 0.06), transparent);
+}
+
+[data-theme="dark"] tr:hover td {
+  background: rgba(108, 140, 255, 0.06);
+}
+
+[data-theme="dark"] button.ghost {
+  border-color: rgba(108, 140, 255, 0.35);
+}
+
+[data-theme="dark"] .duration-preview {
+  border-color: rgba(108, 140, 255, 0.35);
 }

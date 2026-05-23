@@ -90,6 +90,10 @@ Scroll sa **Environment Variables** → Add:
 | `ADMIN_PASSWORD` | malakas na password |
 | `DATABASE_URL` | paste Internal Database URL (Step 2) |
 | `CORS_ORIGINS` | `http://localhost:3000,https://harvhaxx.vercel.app` |
+| `DISCORD_WEBHOOK_EXPIRED` | (optional) `#expired` channel webhook |
+| `DISCORD_WEBHOOK_ACTIVE` | (optional) `#active` channel webhook |
+| `DISCORD_WEBHOOK_HWID_RESET` | (optional) `#hwid-reset` channel webhook |
+| `DISCORD_WEBHOOK_URL` | (optional) legacy — same as expired if `EXPIRED` empty |
 
 **Walang space** pagkatapos ng comma. **Walang** trailing slash sa URL.  
 Pagkatapos mag-save → **Manual Deploy** ulit ang API.

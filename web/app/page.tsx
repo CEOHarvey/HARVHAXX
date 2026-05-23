@@ -1,6 +1,7 @@
 "use client";
 
 import { useCallback, useEffect, useMemo, useState } from "react";
+import { ThemeToggle } from "./components/ThemeToggle";
 
 const API = process.env.NEXT_PUBLIC_API_URL ?? "http://127.0.0.1:8000";
 
@@ -241,6 +242,10 @@ export default function AdminPage() {
   if (!token) {
     return (
       <div className="app-shell login-wrap">
+        <div className="header-row" style={{ marginBottom: "0.5rem" }}>
+          <div />
+          <ThemeToggle />
+        </div>
         <h1>License Dashboard</h1>
         <p className="subtitle">Admin panel — keys, HWID, live sessions</p>
         <form onSubmit={adminLogin} className="card">
@@ -271,9 +276,12 @@ export default function AdminPage() {
             <span className="live-dot">Live</span> — one account / one PC / one license
           </p>
         </div>
-        <button type="button" className="secondary" onClick={logout}>
-          Log out
-        </button>
+        <div className="header-actions">
+          <ThemeToggle />
+          <button type="button" className="secondary" onClick={logout}>
+            Log out
+          </button>
+        </div>
       </div>
 
       <div className="stats">
