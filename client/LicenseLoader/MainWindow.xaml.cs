@@ -36,10 +36,13 @@ public partial class MainWindow : Window
         PanelLogin.Visibility = visible == PanelLogin ? Visibility.Visible : Visibility.Collapsed;
         PanelRegister.Visibility = visible == PanelRegister ? Visibility.Visible : Visibility.Collapsed;
         PanelLicense.Visibility = visible == PanelLicense ? Visibility.Visible : Visibility.Collapsed;
+        PanelExpired.Visibility = visible == PanelExpired ? Visibility.Visible : Visibility.Collapsed;
         PanelMain.Visibility = visible == PanelMain ? Visibility.Visible : Visibility.Collapsed;
 
         if (visible != PanelMain)
             _gamePollTimer?.Stop();
+        if (visible != PanelMain && visible != PanelExpired)
+            _countdownTimer?.Stop();
     }
 
     private static void ShowError(System.Windows.Controls.TextBlock label, string message)
@@ -98,7 +101,52 @@ public partial class MainWindow : Window
             ShowMain(status);
             return;
         }
+
+        if (IsExpiredOrBlocked(status))
+        {
+            ShowExpired(status);
+            return;
+        }
+
         ShowPanel(PanelLicense);
+    }
+
+    private static bool IsExpiredOrBlocked(LicenseStatusResult status) =>
+        status.Status is "expired" or "revoked" or "hwid_mismatch";
+
+    private void ShowExpired(LicenseStatusResult status)
+    {
+        ShowPanel(PanelExpired);
+        _licenseValid = false;
+        LblExpiredTitle.Text = status.Status switch
+        {
+            "revoked" => "Your license was revoked",
+            "hwid_mismatch" => "HWID mismatch",
+            _ => "Your license has expired",
+        };
+        LblExpiredDetail.Text = status.Status switch
+        {
+            "revoked" => "This license key is no longer valid. Contact admin to resolve.",
+            "hwid_mismatch" => "This license is locked to another PC. Contact admin for HWID reset.",
+            _ => "Your license time has ended. You cannot use the loader until you renew.",
+        };
+        RunDiscord.Text = "ceoharvey24";
+        LblHint.Text = "Renew your license or contact admin on Discord.";
+    }
+
+    private void GoToLicenseFromExpired_Click(object sender, RoutedEventArgs e) => ShowPanel(PanelLicense);
+
+    private void SignOut_Click(object sender, RoutedEventArgs e)
+    {
+        _token = null;
+        _username = null;
+        _api.SetToken(null);
+        _countdownTimer?.Stop();
+        _gamePollTimer?.Stop();
+        TxtUsername.Text = "";
+        TxtPassword.Password = "";
+        ShowPanel(PanelLogin);
+        LblHint.Text = "Load hacks only while in-game.";
     }
 
     private async void Activate_Click(object sender, RoutedEventArgs e)
@@ -110,6 +158,11 @@ public partial class MainWindow : Window
             var status = await _api.ActivateAsync(key, _hwid);
             if (!status.Valid)
             {
+                if (IsExpiredOrBlocked(status))
+                {
+                    ShowExpired(status);
+                    return;
+                }
                 ShowError(LblLicenseError, status.Message);
                 return;
             }
@@ -123,6 +176,12 @@ public partial class MainWindow : Window
 
     private void ShowMain(LicenseStatusResult status)
     {
+        if (!status.Valid)
+        {
+            ShowExpired(status);
+            return;
+        }
+
         ShowPanel(PanelMain);
         LblWelcome.Text = $"Welcome, {_username}";
 
@@ -188,6 +247,11 @@ public partial class MainWindow : Window
         }
         else
         {
+            if (IsExpiredOrBlocked(status) && PanelMain.Visibility == Visibility.Visible)
+            {
+                ShowExpired(status);
+                return;
+            }
             RunLicenseStatus.Text = status.Status.ToUpperInvariant();
             RunExpires.Text = status.ExpiresAt?.ToLocalTime().ToString("g") ?? "—";
             RunRemaining.Text = "00:00:00";
@@ -253,13 +317,22 @@ public partial class MainWindow : Window
                 try
                 {
                     var status = await _api.ValidateAsync(_hwid);
+                    if (!status.Valid)
+                    {
+                        ShowExpired(status);
+                        return;
+                    }
                     UpdateStatusUi(status);
                 }
                 catch
                 {
                     _licenseValid = false;
-                    RefreshGameState();
-                    ShowError(LblMainMessage, "License expired.");
+                    ShowExpired(new LicenseStatusResult
+                    {
+                        Valid = false,
+                        Status = "expired",
+                        Message = "License expired",
+                    });
                 }
             }
         };
@@ -346,8 +419,13 @@ public partial class MainWindow : Window
         try
         {
             var status = await _api.ValidateAsync(_hwid);
+            if (!status.Valid)
+            {
+                ShowExpired(status);
+                return;
+            }
             UpdateStatusUi(status);
-            if (!status.Valid || string.IsNullOrWhiteSpace(_gameExePath))
+            if (string.IsNullOrWhiteSpace(_gameExePath))
                 return;
 
             Process? runningCheck = null;
@@ -394,4 +472,14 @@ public partial class MainWindow : Window
             RefreshGameState();
         }
     }
+
+    private void TitleBar_MouseDown(object sender, System.Windows.Input.MouseButtonEventArgs e)
+    {
+        if (e.LeftButton == System.Windows.Input.MouseButtonState.Pressed)
+            DragMove();
+    }
+
+    private void CloseBtn_Click(object sender, RoutedEventArgs e) => Close();
+
+    private void MinimizeBtn_Click(object sender, RoutedEventArgs e) => WindowState = WindowState.Minimized;
 }

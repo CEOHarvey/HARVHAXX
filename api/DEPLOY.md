@@ -1,192 +1,198 @@
-# Deploy API (public) — step by step
+# Deploy API (public) — Render step by step
 
-Recommended: **Render.com** (free HTTPS URL, e.g. `https://license-loader-api.onrender.com`).
+## IMPORTANTE: Anong service ang pipiliin?
 
----
+| Gusto mo i-deploy | Render type | May Build Command? |
+|-------------------|-------------|-------------------|
+| **FastAPI (API)** `api/` | **Web Service** | Oo |
+| **Next.js dashboard** `web/` | **Static Site** o Vercel | Oo (npm) |
 
-## Before deploy — checklist
+**Huwag** gumawa ng **Static Site** para sa API — wala doon ang Python/uvicorn fields.
 
-1. Change secrets (do NOT use defaults in production):
-   - `SECRET_KEY` — long random string
-   - `ADMIN_PASSWORD` — strong password
-2. Use **PostgreSQL** on cloud (included below). SQLite is for local dev only.
-3. After deploy, update:
-   - Loader `appsettings.json` → `ApiBaseUrl`
-   - Web `.env.local` → `NEXT_PUBLIC_API_URL`
+Kung nakikita mo lang "static site" at walang **Start Command** → mali ang napili. Delete at gumawa ng **Web Service**.
 
 ---
 
-## Part A — Push code to GitHub
+## STEP 1 — GitHub
 
-### 1. Create GitHub repo
-
-- Go to https://github.com/new
-- Name: `license-loader-platform` (or any name)
-- Create repository (empty)
-
-### 2. Push from your PC
+1. https://github.com/new → bagong repo
+2. Sa PC:
 
 ```powershell
 cd C:\Users\Harvey\Projects\license-loader-platform
+git init
 git add .
-git commit -m "Prepare API for deploy"
+git commit -m "Initial commit"
 git branch -M main
-git remote add origin https://github.com/YOUR_USERNAME/license-loader-platform.git
+git remote add origin https://github.com/USERNAME/REPO-NAME.git
 git push -u origin main
 ```
 
-Replace `YOUR_USERNAME` and repo name.
+---
+
+## STEP 2 — PostgreSQL (database)
+
+1. https://dashboard.render.com
+2. Click **+ New** (top right)
+3. Piliin **PostgreSQL** (hindi Web Service, hindi Static Site)
+4. Name: `license-loader-db` → Plan **Free** → **Create Database**
+5. Hintayin **Available**
+6. Sa page ng database, copy ang **Internal Database URL** (`postgresql://...`)
 
 ---
 
-## Part B — Deploy API on Render (recommended)
+## STEP 3 — API = Web Service (hindi Static Site)
 
-### 1. Sign up
+### 3.1 Gumawa ng tamang service
 
-- https://render.com — sign up (GitHub login is easiest)
+1. Dashboard → **+ New**
+2. Piliin **Web Service**  
+   - Icon: globe / server  
+   - Description: "Dynamic web app" / Python, Node, etc.  
+   - **HINDI** "Static Site"
 
-### 2. New PostgreSQL database
+### 3.2 Connect repo
 
-1. Dashboard → **New +** → **PostgreSQL**
-2. Name: `license-loader-db`
-3. Plan: **Free**
-4. Create
-5. Copy **Internal Database URL** (starts with `postgresql://`)
+1. **Build and deploy from a Git repository** → **Next**
+2. Connect GitHub kung first time
+3. Piliin ang repo `license-loader-platform` → **Connect**
 
-### 3. New Web Service (API)
+### 3.3 Settings (ito ang dapat mong makita)
 
-1. **New +** → **Web Service**
-2. Connect your GitHub repo
-3. Settings:
-
-| Field | Value |
-|-------|--------|
+| Field | Ilagay mo |
+|-------|-----------|
 | **Name** | `license-loader-api` |
-| **Root Directory** | `api` |
-| **Runtime** | Python 3 |
+| **Region** | Singapore o pinakamalapit |
+| **Branch** | `main` |
+| **Root Directory** | **`api`** ← PINAKA-IMPORTANTE (kung blank = build failed, walang requirements.txt) |
+| **Runtime** | **Python 3** |
+| **Python Version** (Environment) | `3.12.0` (huwag 3.14 — maaaring may compatibility issues) |
 | **Build Command** | `pip install -r requirements.txt` |
 | **Start Command** | `uvicorn app.main:app --host 0.0.0.0 --port $PORT` |
-| **Plan** | Free |
 
-### 4. Environment variables
+**Kung error:** `Could not open requirements file: requirements.txt`  
+→ **Root Directory** ay blank o mali. Dapat eksaktong: `api` (walang slash: hindi `/api`).
 
-In **Environment** tab, add:
+Kung **walang** Build Command / Start Command / Runtime:
+- Cancel — napili mo Static Site o maling template
+- Ulitin at piliin **Web Service**
+
+**Instance type:** Free
+
+### 3.4 Environment variables
+
+Scroll sa **Environment Variables** → Add:
 
 | Key | Value |
 |-----|--------|
-| `SECRET_KEY` | (generate: https://randomkeygen.com/ — use 64 char) |
+| `SECRET_KEY` | long random string (64 chars) |
 | `ADMIN_USERNAME` | `admin` |
-| `ADMIN_PASSWORD` | your strong password |
-| `DATABASE_URL` | paste PostgreSQL URL from step 2 |
-| `CORS_ORIGINS` | `http://localhost:3000,https://YOUR-WEB-URL.vercel.app` |
+| `ADMIN_PASSWORD` | malakas na password |
+| `DATABASE_URL` | paste Internal Database URL (Step 2) |
+| `CORS_ORIGINS` | `http://localhost:3000,https://harvhaxx.vercel.app` |
 
-Add your real web URL when you deploy the dashboard.
+**Walang space** pagkatapos ng comma. **Walang** trailing slash sa URL.  
+Pagkatapos mag-save → **Manual Deploy** ulit ang API.
 
-### 5. Deploy
+### 3.5 Deploy
 
-- Click **Create Web Service**
-- Wait until status **Live** (5–10 min first time)
-
-### 6. Test public API
-
-Your URL will look like:
+1. Click **Create Web Service** (bottom)
+2. Hintayin logs: Build → Deploy → **Live**
+3. Public URL:
 
 ```
 https://license-loader-api.onrender.com
 ```
 
-Test in browser or PowerShell:
+(iba ang name kung iba ang Name mo)
 
-```powershell
-Invoke-RestMethod https://license-loader-api.onrender.com/health
+### 3.6 Test
+
+Browser o PowerShell:
+
+```
+https://YOUR-NAME.onrender.com/health
 ```
 
-Should return `status: ok`.
-
-**Note:** Free tier sleeps after ~15 min idle. First request may take 30–60 seconds to wake up.
+Dapat: `{"status":"ok"}`
 
 ---
 
-## Part C — Connect loader + web
+## STEP 4 — Web dashboard (hiwalay — Static Site o Vercel)
 
-### Loader (`appsettings.json` or rebuild embedded)
+Ang **Next.js** sa folder `web/` ay **HIWALAY** sa API.
+
+### Option A — Vercel (recommended)
+
+1. https://vercel.com → Import GitHub repo
+2. **Root Directory:** `web`
+3. Env: `NEXT_PUBLIC_API_URL` = `https://license-loader-api.onrender.com`
+4. Deploy
+
+### Option B — Render Static Site (kung gusto lahat sa Render)
+
+1. **+ New** → **Static Site** (dito lang Static Site)
+2. Same repo, **Root Directory:** `web`
+3. **Build Command:** `npm install && npm run build`
+4. **Publish Directory:** `out` o `.next` — para Next.js mas okay Vercel
+
+Para sa Next.js 14 App Router, **Vercel** ang mas simple.
+
+Pagkatapos mag-deploy ng web, idagdag ang web URL sa API `CORS_ORIGINS` sa Render → redeploy API.
+
+---
+
+## STEP 5 — Loader EXE
+
+`appsettings.json`:
 
 ```json
 "ApiBaseUrl": "https://license-loader-api.onrender.com"
 ```
 
-Rebuild/publish EXE after change.
-
-### Web dashboard
-
-`web/.env.local`:
-
-```
-NEXT_PUBLIC_API_URL=https://license-loader-api.onrender.com
-```
-
-Then:
-
-```powershell
-cd web
-npm run dev
-```
-
-For public web too, deploy `web` on **Vercel** (see `web/DEPLOY.md` if added) or Render static site.
-
----
-
-## Part D — Deploy web on Vercel (optional, public dashboard)
-
-1. https://vercel.com → sign up with GitHub
-2. **Add New Project** → import same repo
-3. **Root Directory:** `web`
-4. Environment variable:
-   - `NEXT_PUBLIC_API_URL` = `https://license-loader-api.onrender.com`
-5. Deploy
-6. Copy Vercel URL → add to API `CORS_ORIGINS` on Render → **Manual Deploy** API again
-
----
-
-## Alternative: Railway
-
-1. https://railway.app → New Project → Deploy from GitHub
-2. Add **PostgreSQL** plugin
-3. Service root: `/api`
-4. Start: `uvicorn app.main:app --host 0.0.0.0 --port $PORT`
-5. Variables: same as Render (`DATABASE_URL` from Railway Postgres)
-
----
-
-## Alternative: VPS (Windows/Linux)
-
-```bash
-cd api
-python -m venv .venv
-source .venv/bin/activate  # Windows: .venv\Scripts\activate
-pip install -r requirements.txt
-export DATABASE_URL=postgresql://...
-export SECRET_KEY=...
-uvicorn app.main:app --host 0.0.0.0 --port 8000
-```
-
-Put **Nginx** or **Caddy** in front with HTTPS (Let's Encrypt).
+Rebuild / `publish-single-exe.ps1`
 
 ---
 
 ## Troubleshooting
 
-| Problem | Fix |
-|---------|-----|
-| CORS error on web | Add exact web URL to `CORS_ORIGINS` on Render |
-| 502 / slow first request | Free tier waking up — wait and retry |
-| DB error | `DATABASE_URL` must be `postgresql://...` not sqlite |
-| Loader cannot connect | HTTPS URL in `ApiBaseUrl`, no trailing slash |
+### "Wala build command sa Render"
+
+→ Gumawa ka ng **Static Site**. Delete ito. Gumawa ng **Web Service** (Step 3.1).
+
+### "Publish Directory" lang ang nakikita
+
+→ Static Site yan. Para sa API kailangan **Web Service**.
+
+### Build failed `Could not open requirements file`
+
+→ **Root Directory** sa Render Settings = `api`  
+→ Repo root ay `HARVHAXX/` — ang `requirements.txt` ay nasa `HARVHAXX/api/requirements.txt`
+
+### Build failed `pip install` (iba pang error)
+
+→ Root Directory = `api`, Python Version = `3.12.0`
+
+### Database error
+
+→ `DATABASE_URL` dapat `postgresql://...` from Render Postgres
+
+### CORS error sa browser
+
+→ Idagdag exact frontend URL sa `CORS_ORIGINS`
+
+### Free tier slow / 502 first request
+
+→ Natutulog ang service; wait 30–60 sec at retry
 
 ---
 
-## Security reminders
+## Visual checklist (Render dashboard)
 
-- Never commit `.env` with real passwords to GitHub
-- Rotate `SECRET_KEY` and admin password before going live
-- Use HTTPS only in production
+```
++ New
+├── Static Site     ← web folder (Next.js) LANG
+├── Web Service     ← API (Python) DITO
+├── PostgreSQL      ← database DITO
+└── ...
+```

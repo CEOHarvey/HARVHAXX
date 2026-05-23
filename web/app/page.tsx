@@ -86,6 +86,16 @@ export default function AdminPage() {
     return () => clearInterval(id);
   }, [token, loadLicenses]);
 
+  async function parseApiError(res: Response): Promise<string> {
+    const text = await res.text();
+    try {
+      const j = JSON.parse(text);
+      return typeof j.detail === "string" ? j.detail : text;
+    } catch {
+      return text || `Request failed (${res.status})`;
+    }
+  }
+
   async function adminLogin(e: React.FormEvent) {
     e.preventDefault();
     setError("");
@@ -95,7 +105,7 @@ export default function AdminPage() {
         headers: { "Content-Type": "application/json" },
         body: JSON.stringify({ username: user, password: pass }),
       });
-      if (!res.ok) throw new Error(await res.text());
+      if (!res.ok) throw new Error(await parseApiError(res));
       const data = await res.json();
       localStorage.setItem("admin_token", data.access_token);
       setToken(data.access_token);
@@ -156,6 +166,9 @@ export default function AdminPage() {
       <div className="app-shell login-wrap">
         <h1>License Dashboard</h1>
         <p className="subtitle">Owner panel — generate keys and watch live expiry</p>
+        <p className="subtitle" style={{ marginTop: "-0.75rem", fontSize: "0.85rem" }}>
+          Use <strong>ADMIN</strong> credentials from Render (Environment), not loader accounts like demouser.
+        </p>
         <form onSubmit={adminLogin} className="card">
           <label>Username</label>
           <input value={user} onChange={(e) => setUser(e.target.value)} style={{ marginBottom: "1rem" }} />
@@ -272,6 +285,10 @@ export default function AdminPage() {
 
       <section className="card">
         <h2 style={{ margin: "0 0 1rem", fontSize: "1.1rem" }}>Licenses</h2>
+        <p className="subtitle" style={{ marginTop: 0 }}>
+          Each active key is locked to one <strong>account</strong> and one <strong>PC (HWID)</strong>.
+          Another user or machine cannot activate the same license.
+        </p>
         <div className="table-wrap">
           <table>
             <thead>
@@ -280,6 +297,8 @@ export default function AdminPage() {
                 <th>Duration</th>
                 <th>Status</th>
                 <th>User</th>
+                <th>HWID (device)</th>
+                <th>Activated</th>
                 <th>Live remaining</th>
                 <th>Expires</th>
                 <th></th>
@@ -302,6 +321,16 @@ export default function AdminPage() {
                       <span className={`badge ${l.status}`}>{l.status}</span>
                     </td>
                     <td>{l.username ?? "—"}</td>
+                    <td>
+                      {l.hwid_tail ? (
+                        <code title="Last 8 chars of bound device hash">…{l.hwid_tail}</code>
+                      ) : (
+                        <span className="muted">—</span>
+                      )}
+                    </td>
+                    <td style={{ color: "var(--muted)", fontSize: "0.82rem" }}>
+                      {l.activated_at ? new Date(l.activated_at).toLocaleString() : "—"}
+                    </td>
                     <td>
                       {isLive ? (
                         <span className={`countdown ${left <= 0 ? "expired" : ""}`}>

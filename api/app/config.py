@@ -13,7 +13,12 @@ class Settings(BaseSettings):
 
     @property
     def cors_origin_list(self) -> list[str]:
-        return [o.strip() for o in self.cors_origins.split(",") if o.strip()]
+        origins: list[str] = []
+        for part in self.cors_origins.replace(";", ",").split(","):
+            o = part.strip().rstrip("/")
+            if o:
+                origins.append(o)
+        return origins
 
 
 settings = Settings()
