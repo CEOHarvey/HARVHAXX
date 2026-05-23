@@ -66,7 +66,7 @@ git push -u origin main
 | **Branch** | `main` |
 | **Root Directory** | **`api`** ← PINAKA-IMPORTANTE (kung blank = build failed, walang requirements.txt) |
 | **Runtime** | **Python 3** |
-| **Python Version** (Environment) | `3.12.0` (huwag 3.14 — maaaring may compatibility issues) |
+| **Python Version** (Environment) | `3.12.8` — **huwag 3.14** (SQLAlchemy crash sa `Mapped[X \| None]`) |
 | **Build Command** | `pip install -r requirements.txt` |
 | **Start Command** | `uvicorn app.main:app --host 0.0.0.0 --port $PORT` |
 

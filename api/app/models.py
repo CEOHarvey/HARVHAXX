@@ -1,7 +1,6 @@
-from __future__ import annotations
-
 import enum
 from datetime import datetime
+from typing import Optional
 
 from sqlalchemy import DateTime, Enum, ForeignKey, Integer, String, func
 from sqlalchemy.orm import Mapped, mapped_column, relationship
@@ -67,7 +66,7 @@ class Activation(Base):
     hwid_hash: Mapped[str] = mapped_column(String(128))
     activated_at: Mapped[datetime] = mapped_column(DateTime(timezone=True), server_default=func.now())
     expires_at: Mapped[datetime] = mapped_column(DateTime(timezone=True))
-    expiry_notified_at: Mapped[datetime | None] = mapped_column(DateTime(timezone=True), nullable=True)
+    expiry_notified_at: Mapped[Optional[datetime]] = mapped_column(DateTime(timezone=True), nullable=True)
 
     license = relationship("License", back_populates="activation")
     user = relationship("User", back_populates="activations")
