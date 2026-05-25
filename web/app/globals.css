@@ -513,3 +513,72 @@ button.theme-toggle:hover {
 [data-theme="dark"] .duration-preview {
   border-color: rgba(108, 140, 255, 0.35);
 }
+
+.tab-bar {
+  display: flex;
+  flex-wrap: wrap;
+  gap: 0.4rem;
+  margin-bottom: 1rem;
+}
+
+.tab-btn {
+  padding: 0.45rem 0.85rem;
+  border-radius: 999px;
+  border: 1px solid var(--border);
+  background: var(--surface2);
+  color: var(--muted);
+  font-size: 0.82rem;
+  font-weight: 500;
+  cursor: pointer;
+}
+
+.tab-btn.active {
+  background: var(--accent-soft);
+  border-color: var(--accent);
+  color: var(--accent);
+}
+
+.key-chip {
+  display: block;
+  width: 100%;
+  text-align: left;
+  padding: 0.55rem 0.75rem;
+  margin-bottom: 0.4rem;
+  border-radius: 8px;
+  border: 1px dashed var(--border);
+  background: var(--surface2);
+  font-family: "JetBrains Mono", monospace;
+  font-size: 0.85rem;
+  cursor: pointer;
+  transition: border-color 0.15s, background 0.15s;
+}
+
+.key-chip:hover {
+  border-color: var(--accent);
+  background: var(--accent-soft);
+}
+
+.keys-box-copy {
+  margin-top: 0.75rem;
+}
+
+.copy-all-btn {
+  margin-bottom: 0.5rem;
+}
+
+.category-block {
+  margin-bottom: 1.25rem;
+}
+
+.category-block h3 {
+  margin: 0 0 0.5rem;
+  font-size: 0.95rem;
+  text-transform: capitalize;
+  color: var(--accent);
+}
+
+p.success {
+  color: var(--success);
+  font-size: 0.88rem;
+  font-weight: 500;
+}

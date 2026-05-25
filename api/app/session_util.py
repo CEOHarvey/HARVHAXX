@@ -3,6 +3,7 @@ from datetime import datetime, timedelta, timezone
 from fastapi import HTTPException, status
 from sqlalchemy.orm import Session
 
+from app.hwid_bind_util import require_approved_hwid
 from app.models import User, UserSession
 
 SESSION_STALE_SECONDS = 120
@@ -21,7 +22,8 @@ def session_is_online(sess: UserSession) -> bool:
 
 
 def claim_session(db: Session, user: User, hwid_hash: str) -> UserSession:
-    """Allow login only if no other PC is actively using this account."""
+    """Approved HWID only; block simultaneous login on another PC."""
+    require_approved_hwid(db, user, hwid_hash)
     now = _utcnow()
     existing = db.query(UserSession).filter(UserSession.user_id == user.id).first()
 
@@ -46,6 +48,7 @@ def claim_session(db: Session, user: User, hwid_hash: str) -> UserSession:
 
 
 def touch_session(db: Session, user: User, hwid_hash: str) -> None:
+    require_approved_hwid(db, user, hwid_hash)
     now = _utcnow()
     sess = db.query(UserSession).filter(UserSession.user_id == user.id).first()
     if not sess:

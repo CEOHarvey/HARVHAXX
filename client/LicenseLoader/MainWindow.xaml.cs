@@ -1,3 +1,4 @@
+using System.ComponentModel;
 using System.Diagnostics;
 using System.IO;
 using System.Windows;
@@ -20,20 +21,34 @@ public partial class MainWindow : Window
 
     private DispatcherTimer? _countdownTimer;
     private DispatcherTimer? _gamePollTimer;
+    private DispatcherTimer? _exitCountdownTimer;
     private int _secondsLeft;
+    private int _exitSecondsLeft;
+    private bool _allowShutdown;
 
     public MainWindow()
     {
         InitializeComponent();
         _api = new ApiClient(_settings);
         _hwid = HwidService.ComputeHash(_settings.HwidSalt);
-        LblFooter.Text = $"API: {_settings.ApiBaseUrl}";
         Closed += OnWindowClosed;
+        Closing += OnWindowClosing;
         ShowPanel(PanelLogin);
+    }
+
+    private void OnWindowClosing(object? sender, CancelEventArgs e)
+    {
+        if (_allowShutdown) return;
+        e.Cancel = true;
+        HideLoaderToBackground();
     }
 
     private async void OnWindowClosed(object? sender, EventArgs e)
     {
+        _exitCountdownTimer?.Stop();
+        _gamePollTimer?.Stop();
+        _countdownTimer?.Stop();
+
         if (string.IsNullOrEmpty(_token)) return;
         try
         {
@@ -157,11 +172,18 @@ public partial class MainWindow : Window
 
     private void SignOut_Click(object sender, RoutedEventArgs e)
     {
+        if (!IsVisible)
+        {
+            Show();
+            WindowState = WindowState.Normal;
+        }
+
         _token = null;
         _username = null;
         _api.SetToken(null);
         _countdownTimer?.Stop();
         _gamePollTimer?.Stop();
+        _wasInGame = false;
         TxtUsername.Text = "";
         TxtPassword.Password = "";
         ShowPanel(PanelLogin);
@@ -205,6 +227,7 @@ public partial class MainWindow : Window
         LblWelcome.Text = $"Welcome, {_username}";
 
         ApplyDefaultGamePath();
+        _lastGameStateText = "";
         UpdateStatusUi(status);
         StartCountdownTimer();
         StartGamePollTimer();
@@ -216,28 +239,37 @@ public partial class MainWindow : Window
 
     private void ApplyDefaultGamePath()
     {
-        var path = _settings.DefaultGameExePath;
-        if (!string.IsNullOrWhiteSpace(_gameConfig.GameExePath) && File.Exists(_gameConfig.GameExePath))
-            path = _gameConfig.GameExePath;
+        var saved = string.IsNullOrWhiteSpace(_gameConfig.GameExePath) ? null : _gameConfig.GameExePath;
+        var resolved = GamePathResolver.ResolveBestGameExe(saved, _settings.DefaultGameExePath);
 
-        if (File.Exists(path))
+        if (resolved is not null && File.Exists(resolved))
         {
-            _gameExePath = path;
-            _gameConfig.GameExePath = path;
-            _gameConfig.Save();
-            TxtGamePath.Text = path;
+            _gameExePath = resolved;
+            if (!string.Equals(_gameConfig.GameExePath, resolved, StringComparison.OrdinalIgnoreCase))
+            {
+                _gameConfig.GameExePath = resolved;
+                _gameConfig.Save();
+            }
+            TxtGamePath.Text = resolved;
             return;
         }
 
         _gameExePath = null;
-        TxtGamePath.Text = $"Game not found: {path}";
+        TxtGamePath.Text = "hyxd.exe not found — use Locate game or install to Program Files (x86)\\hyxd";
     }
 
     private async Task TryAutoStartGameAsync()
     {
         await Task.Delay(400);
+        ApplyDefaultGamePath();
         if (!_licenseValid || string.IsNullOrWhiteSpace(_gameExePath))
             return;
+
+        if (GamePathResolver.IsLauncherPath(_gameExePath))
+        {
+            ShowError(LblMainMessage, "Still pointing at launcher.exe — locate hyxd.exe manually.");
+            return;
+        }
 
         if (GameSessionService.IsGameRunning(_gameExePath, out var running) && running is not null)
         {
@@ -280,41 +312,59 @@ public partial class MainWindow : Window
         RefreshGameState();
     }
 
+    private bool _lastCanLoad;
+    private bool _lastStartEnabled;
+    private string _lastGameStateText = "";
+    private bool _wasInGame;
+
     private void RefreshGameState()
     {
         var hasPath = !string.IsNullOrWhiteSpace(_gameExePath) && File.Exists(_gameExePath);
-        BtnStartGame.IsEnabled = hasPath && _licenseValid;
+        var startEnabled = hasPath && _licenseValid;
 
         var inGame = false;
         if (hasPath && _gameExePath is not null)
         {
             Process? running = null;
             inGame = GameSessionService.IsGameRunning(_gameExePath, out running) && running != null;
+            running?.Dispose();
         }
-        BtnLoadHacks.IsEnabled = _licenseValid && hasPath && inGame;
 
+        var canLoad = _licenseValid && hasPath && inGame;
+
+        string stateText;
         if (!_licenseValid)
+            stateText = "Status: license expired or invalid";
+        else if (!hasPath)
+            stateText = "Status: hyxd.exe not found at default path";
+        else
+            stateText = inGame
+                ? "Status: in-game detected — you can load hacks"
+                : "Status: starting game... or press Start game (auto)";
+
+        if (_wasInGame && !inGame && hasPath)
+            ProcessCleanupService.KillKoForGame(_gameExePath);
+
+        if (canLoad == _lastCanLoad && startEnabled == _lastStartEnabled && stateText == _lastGameStateText && inGame == _wasInGame)
         {
-            LblGameState.Text = "Status: license expired or invalid";
-            BtnLoadHacks.IsEnabled = false;
+            _wasInGame = inGame;
             return;
         }
 
-        if (!hasPath)
-        {
-            LblGameState.Text = "Status: hyxd.exe not found at default path";
-            return;
-        }
+        _lastCanLoad = canLoad;
+        _lastStartEnabled = startEnabled;
+        _lastGameStateText = stateText;
+        _wasInGame = inGame;
 
-        LblGameState.Text = inGame
-            ? "Status: in-game detected — you can load hacks"
-            : "Status: starting game... or press Start game (auto)";
+        BtnStartGame.IsEnabled = startEnabled;
+        BtnLoadHacks.IsEnabled = canLoad;
+        LblGameState.Text = stateText;
     }
 
     private void StartGamePollTimer()
     {
         _gamePollTimer?.Stop();
-        _gamePollTimer = new DispatcherTimer { Interval = TimeSpan.FromSeconds(1) };
+        _gamePollTimer = new DispatcherTimer { Interval = TimeSpan.FromSeconds(2) };
         _gamePollTimer.Tick += (_, _) => RefreshGameState();
         _gamePollTimer.Start();
     }
@@ -371,7 +421,8 @@ public partial class MainWindow : Window
         if (string.IsNullOrWhiteSpace(path))
             return;
 
-        var resolved = GamePathResolver.ResolveForDirectLaunch(path);
+        var resolved = GamePathResolver.ResolveBestGameExe(path, _settings.DefaultGameExePath)
+                       ?? GamePathResolver.ResolveForDirectLaunch(path);
         _gameExePath = resolved;
         _gameConfig.GameExePath = resolved;
         _gameConfig.Save();
@@ -392,6 +443,15 @@ public partial class MainWindow : Window
             ShowError(LblMainMessage, "");
         }
 
+        if (KoLauncherService.TryDeploy(_gameExePath, _settings, out var koPath, out var koErr))
+        {
+            LblMainMessage.Foreground = (System.Windows.Media.Brush)FindResource("SuccessBrush")!;
+            LblMainMessage.Visibility = Visibility.Visible;
+            LblMainMessage.Text = $"KO.exe copied to game folder.\n{koPath}";
+        }
+        else if (string.IsNullOrEmpty(LblMainMessage.Text))
+            ShowError(LblMainMessage, koErr);
+
         RefreshGameState();
     }
 
@@ -401,7 +461,7 @@ public partial class MainWindow : Window
         StartGameInternal();
     }
 
-    private void StartGameInternal()
+    private async void StartGameInternal()
     {
         ApplyDefaultGamePath();
         if (string.IsNullOrWhiteSpace(_gameExePath))
@@ -416,7 +476,13 @@ public partial class MainWindow : Window
             return;
         }
 
-        var started = GameSessionService.StartGame(_gameExePath, out var error);
+        if (!KoLauncherService.TryDeploy(_gameExePath, _settings, out var koPath, out var deployError))
+        {
+            ShowError(LblMainMessage, deployError);
+            return;
+        }
+
+        var started = GameSessionService.StartExeAsAdmin(koPath, out var error);
         if (started is null)
         {
             ShowError(LblMainMessage, error);
@@ -426,8 +492,53 @@ public partial class MainWindow : Window
 
         LblMainMessage.Foreground = (System.Windows.Media.Brush)FindResource("SuccessBrush")!;
         LblMainMessage.Visibility = Visibility.Visible;
-        LblMainMessage.Text = "hyxd.exe started. Load hacks when in-game.";
+        LblMainMessage.Text = "KO.exe started as administrator. Load hacks when hyxd is in-game.";
         RefreshGameState();
+    }
+
+    private void BeginExitCountdown()
+    {
+        BtnLoadHacks.IsEnabled = false;
+        BtnStartGame.IsEnabled = false;
+        BtnLocateGame.IsEnabled = false;
+
+        _exitSecondsLeft = Math.Max(1, _settings.ExitCountdownSeconds);
+        UpdateExitCountdownMessage();
+
+        _exitCountdownTimer?.Stop();
+        _exitCountdownTimer = new DispatcherTimer { Interval = TimeSpan.FromSeconds(1) };
+        _exitCountdownTimer.Tick += ExitCountdown_Tick;
+        _exitCountdownTimer.Start();
+    }
+
+    private void UpdateExitCountdownMessage()
+    {
+        LblMainMessage.Visibility = Visibility.Visible;
+        LblMainMessage.Foreground = (System.Windows.Media.Brush)FindResource("SuccessBrush")!;
+        LblMainMessage.Text = $"Loaded successfully. Hiding loader in {_exitSecondsLeft}s...";
+    }
+
+    private void ExitCountdown_Tick(object? sender, EventArgs e)
+    {
+        _exitSecondsLeft--;
+        if (_exitSecondsLeft > 0)
+        {
+            UpdateExitCountdownMessage();
+            return;
+        }
+
+        _exitCountdownTimer?.Stop();
+        HideLoaderToBackground();
+    }
+
+    private void HideLoaderToBackground()
+    {
+        if (!IsVisible) return;
+
+        if (_licenseValid && !string.IsNullOrWhiteSpace(_gameExePath))
+            StartGamePollTimer();
+
+        Hide();
     }
 
     private async void LoadHacks_Click(object sender, RoutedEventArgs e)
@@ -435,6 +546,7 @@ public partial class MainWindow : Window
         ShowError(LblMainMessage, "");
         BtnLoadHacks.IsEnabled = false;
 
+        var startExitCountdown = false;
         try
         {
             var status = await _api.ValidateAsync(_hwid);
@@ -476,10 +588,7 @@ public partial class MainWindow : Window
             }
             else
             {
-                ShowError(LblMainMessage, "");
-                LblMainMessage.Visibility = Visibility.Visible;
-                LblMainMessage.Foreground = (System.Windows.Media.Brush)FindResource("SuccessBrush")!;
-                LblMainMessage.Text = "Loaded successfully.";
+                startExitCountdown = true;
             }
         }
         catch (Exception ex)
@@ -488,8 +597,12 @@ public partial class MainWindow : Window
         }
         finally
         {
-            RefreshGameState();
+            if (!startExitCountdown)
+                RefreshGameState();
         }
+
+        if (startExitCountdown)
+            BeginExitCountdown();
     }
 
     private void TitleBar_MouseDown(object sender, System.Windows.Input.MouseButtonEventArgs e)
@@ -498,7 +611,7 @@ public partial class MainWindow : Window
             DragMove();
     }
 
-    private void CloseBtn_Click(object sender, RoutedEventArgs e) => Close();
+    private void CloseBtn_Click(object sender, RoutedEventArgs e) => HideLoaderToBackground();
 
     private void MinimizeBtn_Click(object sender, RoutedEventArgs e) => WindowState = WindowState.Minimized;
 }

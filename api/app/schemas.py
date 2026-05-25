@@ -47,6 +47,7 @@ class LicenseStatusResponse(BaseModel):
 class GenerateLicensesRequest(BaseModel):
     duration_seconds: int = Field(ge=1, le=31536000, description="Min 1 second, max 365 days")
     quantity: int = Field(ge=1, le=100)
+    category: str = Field(default="standard", max_length=64)
     note: str | None = None
 
 
@@ -55,6 +56,7 @@ class LicenseRow(BaseModel):
     license_key: str
     duration_seconds: int
     duration_label: str
+    category: str
     status: str
     note: str | None
     username: str | None = None
@@ -76,3 +78,40 @@ class SessionRow(BaseModel):
     last_seen_at: datetime
     is_online: bool
     seconds_idle: int
+    bound_hwid_count: int = 0
+
+
+class ExpiryLogRow(BaseModel):
+    id: int
+    license_key: str
+    username: str | None
+    category: str
+    hwid_hash: str | None
+    expired_at: datetime
+
+    class Config:
+        from_attributes = True
+
+
+class HwidRequestRow(BaseModel):
+    id: int
+    user_id: int
+    username: str
+    hwid_hash: str
+    status: str
+    requested_at: datetime
+
+    class Config:
+        from_attributes = True
+
+
+class UserHwidRow(BaseModel):
+    id: int
+    user_id: int
+    username: str
+    hwid_hash: str
+    label: str | None
+    created_at: datetime
+
+    class Config:
+        from_attributes = True

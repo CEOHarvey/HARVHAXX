@@ -3,8 +3,10 @@ import string
 
 
 def generate_license_key() -> str:
+    """Format: HARVEY-XXXXX-XXXXX (A-Z, 0-9)."""
     alphabet = string.ascii_uppercase + string.digits
-    parts = []
-    for _ in range(3):
-        parts.append("".join(secrets.choice(alphabet) for _ in range(4)))
-    return "-".join(parts)
+
+    def segment(length: int) -> str:
+        return "".join(secrets.choice(alphabet) for _ in range(length))
+
+    return f"HARVEY-{segment(5)}-{segment(5)}"

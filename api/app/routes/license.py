@@ -7,6 +7,7 @@ from app.database import get_db
 from app.deps import get_current_user
 from app.discord_notify import notify_license_activated, notify_new_pc_bound
 from app.expiry_util import is_expired, mark_expired_and_notify, seconds_left
+from app.hwid_bind_util import hwid_allowed_for_activation
 from app.hwid_util import is_hwid_pending_reset
 from app.models import Activation, License, LicenseStatus, User
 from app.schemas import ActivateRequest, LicenseStatusResponse, ValidateRequest
@@ -74,8 +75,13 @@ def activate(body: ActivateRequest, user: User = Depends(get_current_user), db: 
         if is_hwid_pending_reset(existing.hwid_hash):
             existing.hwid_hash = body.hwid_hash
             notify_new_pc_bound(existing)
+        elif not hwid_allowed_for_activation(db, user.id, existing.hwid_hash, body.hwid_hash):
+            raise HTTPException(
+                status_code=status.HTTP_400_BAD_REQUEST,
+                detail="HWID not authorized for this license. Request bind from admin.",
+            )
         elif existing.hwid_hash != body.hwid_hash:
-            raise HTTPException(status_code=status.HTTP_400_BAD_REQUEST, detail="HWID mismatch for this license")
+            existing.hwid_hash = body.hwid_hash
         touch_session(db, user, body.hwid_hash)
         resp = _response_from_activation(db, existing)
         db.commit()
@@ -118,8 +124,14 @@ def validate(body: ValidateRequest, user: User = Depends(get_current_user), db: 
     if is_hwid_pending_reset(act.hwid_hash):
         act.hwid_hash = body.hwid_hash
         notify_new_pc_bound(act)
+    elif not hwid_allowed_for_activation(db, user.id, act.hwid_hash, body.hwid_hash):
+        return LicenseStatusResponse(
+            valid=False,
+            status="hwid_mismatch",
+            message="HWID not authorized. Request bind from admin on this PC.",
+        )
     elif act.hwid_hash != body.hwid_hash:
-        return LicenseStatusResponse(valid=False, status="hwid_mismatch", message="HWID does not match activation")
+        act.hwid_hash = body.hwid_hash
     touch_session(db, user, body.hwid_hash)
     resp = _response_from_activation(db, act)
     db.commit()

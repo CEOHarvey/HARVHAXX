@@ -16,30 +16,37 @@ public static class GameSessionService
         return dialog.ShowDialog() == true ? dialog.FileName : null;
     }
 
-    public static Process? StartGame(string exePath, out string error)
+    public static Process? StartExeAsAdmin(string exePath, out string error)
     {
         error = "";
         if (!File.Exists(exePath))
         {
-            error = "Game executable not found.";
+            error = "Executable not found.";
             return null;
         }
 
         try
         {
+            var fullExe = Path.GetFullPath(exePath);
             var startInfo = new ProcessStartInfo
             {
-                FileName = exePath,
-                WorkingDirectory = Path.GetDirectoryName(exePath) ?? "",
+                FileName = fullExe,
+                WorkingDirectory = Path.GetDirectoryName(fullExe) ?? "",
                 UseShellExecute = true,
+                Verb = "runas",
             };
             var proc = Process.Start(startInfo);
             if (proc is null)
             {
-                error = "Failed to start game.";
+                error = "Failed to start (admin prompt cancelled?).";
                 return null;
             }
             return proc;
+        }
+        catch (System.ComponentModel.Win32Exception ex) when (ex.NativeErrorCode == 1223)
+        {
+            error = "Admin permission was cancelled.";
+            return null;
         }
         catch (Exception ex)
         {
@@ -47,6 +54,10 @@ public static class GameSessionService
             return null;
         }
     }
+
+    /// <summary>Legacy direct start without admin (unused when KO launcher is enabled).</summary>
+    public static Process? StartGame(string exePath, out string error) =>
+        StartExeAsAdmin(exePath, out error);
 
     public static bool IsGameRunning(string exePath, out Process? running)
     {

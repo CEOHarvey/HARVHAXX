@@ -13,6 +13,11 @@ logger = logging.getLogger(__name__)
 
 
 def _migrate() -> None:
+    from sqlalchemy.orm import Session
+
+    from app.hwid_bind_util import add_approved_hwid
+    from app.models import Activation, User, UserHwid, UserSession
+
     insp = inspect(engine)
     tables = insp.get_table_names()
     dialect = engine.dialect.name
@@ -30,6 +35,12 @@ def _migrate() -> None:
                 conn.execute(
                     text("UPDATE licenses SET duration_seconds = duration_days * 86400 WHERE duration_seconds IS NULL")
                 )
+            if "category" not in cols:
+                if dialect == "sqlite":
+                    conn.execute(text("ALTER TABLE licenses ADD COLUMN category VARCHAR(64) DEFAULT 'standard'"))
+                else:
+                    conn.execute(text("ALTER TABLE licenses ADD COLUMN IF NOT EXISTS category VARCHAR(64) DEFAULT 'standard'"))
+                conn.execute(text("UPDATE licenses SET category = 'standard' WHERE category IS NULL"))
 
     if "activations" in tables:
         cols = {c["name"] for c in insp.get_columns("activations")}
@@ -41,6 +52,16 @@ def _migrate() -> None:
                     conn.execute(
                         text("ALTER TABLE activations ADD COLUMN IF NOT EXISTS expiry_notified_at TIMESTAMPTZ")
                     )
+
+    if "user_hwids" in tables:
+        with Session(engine) as db:
+            if db.query(UserHwid).count() == 0:
+                for sess in db.query(UserSession).all():
+                    add_approved_hwid(db, sess.user_id, sess.hwid_hash, label="migrated")
+                for act in db.query(Activation).all():
+                    if act.hwid_hash and act.hwid_hash != "0" * 64:
+                        add_approved_hwid(db, act.user_id, act.hwid_hash, label="migrated")
+                db.commit()
 
 
 def _init_db() -> None:
@@ -59,6 +80,7 @@ app = FastAPI(title="License Loader API", version="0.1.0")
 app.add_middleware(
     CORSMiddleware,
     allow_origins=settings.cors_origin_list,
+    allow_origin_regex=r"https://.*\.vercel\.app",  # production + preview on Vercel
     allow_credentials=True,
     allow_methods=["*"],
     allow_headers=["*"],

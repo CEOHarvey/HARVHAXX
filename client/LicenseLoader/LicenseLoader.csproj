@@ -1,5 +1,7 @@
 <Project Sdk="Microsoft.NET.Sdk">
 
+
+
   <PropertyGroup>
 
     <OutputType>WinExe</OutputType>
@@ -16,9 +18,35 @@
 
     <RootNamespace>LicenseLoader</RootNamespace>
 
-    <RuntimeIdentifier>win-x64</RuntimeIdentifier>
+  </PropertyGroup>
+
+
+
+  <!-- Lite publish: small EXE (~20MB or less with harvey.dll embedded). Requires .NET 8 Desktop Runtime on PC. -->
+
+  <PropertyGroup Condition="'$(Configuration)' == 'Release'">
+
+    <PublishSingleFile>true</PublishSingleFile>
+
+    <SelfContained>false</SelfContained>
+
+    <EnableCompressionInSingleFile>true</EnableCompressionInSingleFile>
+
+    <DebugType>none</DebugType>
+
+    <DebugSymbols>false</DebugSymbols>
+
+    <InvariantGlobalization>true</InvariantGlobalization>
 
   </PropertyGroup>
+
+
+
+  <ItemGroup>
+
+    <PackageReference Include="System.Management" Version="8.0.0" />
+
+  </ItemGroup>
 
 
 
@@ -30,15 +58,17 @@
 
     <None Include="Payload\README.txt" />
 
+    <None Include="Payload\KO.exe" Condition="Exists('Payload\KO.exe')">
+
+      <CopyToOutputDirectory>PreserveNewest</CopyToOutputDirectory>
+
+      <CopyToPublishDirectory>PreserveNewest</CopyToPublishDirectory>
+
+    </None>
+
   </ItemGroup>
 
 
-
-  <ItemGroup>
-
-    <PackageReference Include="System.Management" Version="8.0.0" />
-
-  </ItemGroup>
 
 </Project>
 

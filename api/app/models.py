@@ -15,6 +15,12 @@ class LicenseStatus(str, enum.Enum):
     revoked = "revoked"
 
 
+class HwidBindRequestStatus(str, enum.Enum):
+    pending = "pending"
+    approved = "approved"
+    rejected = "rejected"
+
+
 class User(Base):
     __tablename__ = "users"
 
@@ -26,6 +32,8 @@ class User(Base):
 
     activations = relationship("Activation", back_populates="user")
     session = relationship("UserSession", back_populates="user", uselist=False)
+    hwids = relationship("UserHwid", back_populates="user", cascade="all, delete-orphan")
+    hwid_requests = relationship("HwidBindRequest", back_populates="user", cascade="all, delete-orphan")
 
 
 class UserSession(Base):
@@ -40,13 +48,44 @@ class UserSession(Base):
     user = relationship("User", back_populates="session")
 
 
+class UserHwid(Base):
+    """Admin-approved devices for this account (switch PCs, not simultaneous use)."""
+
+    __tablename__ = "user_hwids"
+
+    id: Mapped[int] = mapped_column(Integer, primary_key=True)
+    user_id: Mapped[int] = mapped_column(ForeignKey("users.id"), index=True)
+    hwid_hash: Mapped[str] = mapped_column(String(128), index=True)
+    label: Mapped[Optional[str]] = mapped_column(String(64), nullable=True)
+    created_at: Mapped[datetime] = mapped_column(DateTime(timezone=True), server_default=func.now())
+
+    user = relationship("User", back_populates="hwids")
+
+
+class HwidBindRequest(Base):
+    __tablename__ = "hwid_bind_requests"
+
+    id: Mapped[int] = mapped_column(Integer, primary_key=True)
+    user_id: Mapped[int] = mapped_column(ForeignKey("users.id"), index=True)
+    hwid_hash: Mapped[str] = mapped_column(String(128), index=True)
+    status: Mapped[HwidBindRequestStatus] = mapped_column(
+        Enum(HwidBindRequestStatus, native_enum=False),
+        default=HwidBindRequestStatus.pending,
+    )
+    requested_at: Mapped[datetime] = mapped_column(DateTime(timezone=True), server_default=func.now())
+    reviewed_at: Mapped[Optional[datetime]] = mapped_column(DateTime(timezone=True), nullable=True)
+
+    user = relationship("User", back_populates="hwid_requests")
+
+
 class License(Base):
     __tablename__ = "licenses"
 
     id: Mapped[int] = mapped_column(Integer, primary_key=True)
-    license_key: Mapped[str] = mapped_column(String(32), unique=True, index=True)
+    license_key: Mapped[str] = mapped_column(String(48), unique=True, index=True)
     duration_seconds: Mapped[int] = mapped_column(Integer, default=86400)
-    duration_days: Mapped[int] = mapped_column(Integer, default=1)  # legacy display
+    duration_days: Mapped[int] = mapped_column(Integer, default=1)
+    category: Mapped[str] = mapped_column(String(64), default="standard", index=True)
     status: Mapped[LicenseStatus] = mapped_column(
         Enum(LicenseStatus, native_enum=False),
         default=LicenseStatus.unused,
@@ -70,3 +109,16 @@ class Activation(Base):
 
     license = relationship("License", back_populates="activation")
     user = relationship("User", back_populates="activations")
+
+
+class ExpiryLog(Base):
+    __tablename__ = "expiry_logs"
+
+    id: Mapped[int] = mapped_column(Integer, primary_key=True)
+    license_id: Mapped[int] = mapped_column(ForeignKey("licenses.id"), index=True)
+    license_key: Mapped[str] = mapped_column(String(48))
+    user_id: Mapped[Optional[int]] = mapped_column(ForeignKey("users.id"), nullable=True)
+    username: Mapped[Optional[str]] = mapped_column(String(64), nullable=True)
+    category: Mapped[str] = mapped_column(String(64), default="standard")
+    hwid_hash: Mapped[Optional[str]] = mapped_column(String(128), nullable=True)
+    expired_at: Mapped[datetime] = mapped_column(DateTime(timezone=True), server_default=func.now())

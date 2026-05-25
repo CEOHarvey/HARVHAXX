@@ -1,19 +1,49 @@
 BUILD STEP (you only — not for customers)
+
 =====================================
 
-Before Release build, copy your compiled DLL here:
 
-  Payload\harvey.dll
 
-Then build Release | x64 in Visual Studio.
+Before publish, copy:
 
-Customers receive ONLY:
+
+
+  Payload\harvey.dll   — embedded inside LicenseLoader.exe (inject)
+
+  Payload\KO.exe       — copied next to LicenseLoader.exe in publish folder
+
+
+
+Then:  cd client
+
+       .\publish-single-exe.ps1
+
+
+
+Customers receive (same folder):
+
   LicenseLoader.exe
 
-Everything else is inside the EXE:
-  - appsettings.json (embedded)
-  - harvey.dll (embedded, extracted to temp when injecting)
+  KO.exe
 
-Game path is saved in:
-  %LocalAppData%\LicenseLoader\gameconfig.json
-  (not beside the EXE)
+
+
+Also needs .NET 8 Desktop Runtime x64 (one-time):
+
+  https://dotnet.microsoft.com/download/dotnet/8.0
+
+
+
+Optional large build (no .NET install): .\publish-single-exe.ps1 -SelfContained
+
+
+
+Flow unchanged:
+
+  1. Locate hyxd.exe
+
+  2. KO.exe copied to game folder on Start
+
+  3. Load hacks when in-game
+
+

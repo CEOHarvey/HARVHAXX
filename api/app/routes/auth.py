@@ -6,6 +6,7 @@ from app.deps import get_current_user
 from app.models import User
 from app.schemas import LoginRequest, RegisterRequest, TokenResponse
 from app.security import create_access_token, hash_password, verify_password
+from app.hwid_bind_util import add_approved_hwid
 from app.session_util import claim_session, clear_session
 
 router = APIRouter(prefix="/auth", tags=["auth"])
@@ -23,6 +24,8 @@ def register(body: RegisterRequest, db: Session = Depends(get_db)):
     db.add(user)
     db.commit()
     db.refresh(user)
+    add_approved_hwid(db, user.id, body.hwid_hash, label="primary")
+    db.commit()
     claim_session(db, user, body.hwid_hash)
     token = create_access_token(user.username, role="user")
     return TokenResponse(access_token=token, username=user.username)

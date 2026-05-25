@@ -1,0 +1,80 @@
+# One EXE - no .NET required. Embeds harvey.dll + KO.exe inside.
+$ErrorActionPreference = "Stop"
+$root = Split-Path -Parent $MyInvocation.MyCommand.Path
+$payload = Join-Path $root "..\LicenseLoader\Payload"
+$harvey = Join-Path $payload "harvey.dll"
+$ko = Join-Path $payload "KO.exe"
+
+if (-not (Test-Path $harvey)) {
+    Write-Host "ERROR: Copy harvey.dll to client\LicenseLoader\Payload\harvey.dll" -ForegroundColor Red
+    exit 1
+}
+if (-not (Test-Path $ko)) {
+    Write-Host "ERROR: Copy KO.exe to client\LicenseLoader\Payload\KO.exe" -ForegroundColor Red
+    exit 1
+}
+
+$venv = Join-Path $root ".venv"
+if (-not (Test-Path $venv)) {
+    Write-Host "Creating venv..."
+    python -m venv $venv
+}
+& (Join-Path $venv "Scripts\pip.exe") install -q -r (Join-Path $root "requirements.txt")
+& (Join-Path $venv "Scripts\pip.exe") install -q pyinstaller
+
+$appsettings = Join-Path $root "appsettings.json"
+$assets = Join-Path $root "loader\assets"
+$entry = Join-Path $root "loader\__main__.py"
+$icon = Join-Path $assets "app.ico"
+
+if (-not (Test-Path (Join-Path $assets "brand.png"))) {
+    Write-Host "ERROR: Missing loader\assets\brand.png (square logo for EXE icon)" -ForegroundColor Red
+    exit 1
+}
+
+Write-Host "Preparing app.ico from brand.png..."
+& (Join-Path $venv "Scripts\python.exe") (Join-Path $root "scripts\prepare_assets.py")
+$brandFile = Join-Path $assets "brand.png"
+Write-Host "  brand.png updated: $((Get-Item $brandFile).LastWriteTime)"
+
+# Full rebuild so EXE icon + embedded assets match brand.png
+if (Test-Path (Join-Path $root "build")) { Remove-Item -Recurse -Force (Join-Path $root "build") }
+if (Test-Path (Join-Path $root "dist")) { Remove-Item -Recurse -Force (Join-Path $root "dist") }
+
+$iconArg = @()
+if (Test-Path $icon) {
+    $iconArg = @("--icon", $icon)
+}
+
+Write-Host "Building LicenseLoader.exe (PyInstaller onefile)..."
+& (Join-Path $venv "Scripts\pyinstaller.exe") --noconfirm --clean --onefile --windowed `
+    --name LicenseLoader `
+    --paths $root `
+    --hidden-import certifi `
+    --hidden-import PIL `
+    --hidden-import PIL.Image `
+    --hidden-import PIL.ImageTk `
+    --collect-all certifi `
+    --add-data "$appsettings;." `
+    --add-data "$assets;assets" `
+    --add-data "$harvey;Payload" `
+    --add-data "$ko;Payload" `
+    @iconArg `
+    $entry
+
+$out = Join-Path $root "dist\LicenseLoader.exe"
+if (Test-Path $out) {
+    $mb = [math]::Round((Get-Item $out).Length / 1MB, 1)
+    Write-Host ""
+    Write-Host "SUCCESS:" -ForegroundColor Green
+    Write-Host $out
+    Write-Host "Size: $mb MB (no .NET 8 needed)"
+    Write-Host ""
+    Write-Host "If Windows still shows the OLD desktop icon, clear the icon cache:" -ForegroundColor Yellow
+    Write-Host "  Close the loader, run build again, then move LicenseLoader.exe to a NEW folder or rename it."
+    Write-Host "  Or: Task Manager -> restart Windows Explorer"
+}
+else {
+    Write-Host "Build failed - dist\LicenseLoader.exe not found." -ForegroundColor Red
+    exit 1
+}
