@@ -71,6 +71,7 @@ class LicenseRow(BaseModel):
     status: str
     note: str | None
     username: str | None = None
+    bound_player_name: str | None = None
     hwid_hash: str | None = None
     hwid_pending_reset: bool = False
     activated_at: datetime | None = None

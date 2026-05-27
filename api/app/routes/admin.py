@@ -103,6 +103,7 @@ def list_licenses(_: str = Depends(get_admin), db: Session = Depends(get_db)):
     out: list[LicenseRow] = []
     for lic in rows:
         username = None
+        bound_player_name = None
         hwid_hash = None
         hwid_pending_reset = False
         expires_at = None
@@ -112,6 +113,7 @@ def list_licenses(_: str = Depends(get_admin), db: Session = Depends(get_db)):
 
         if lic.activation:
             username = lic.activation.user.username
+            bound_player_name = getattr(lic.activation.user, "bound_player_name", None)
             hwid_hash = lic.activation.hwid_hash
             hwid_pending_reset = is_hwid_pending_reset(hwid_hash)
             expires_at = lic.activation.expires_at
@@ -131,6 +133,7 @@ def list_licenses(_: str = Depends(get_admin), db: Session = Depends(get_db)):
                 status=lic.status.value,
                 note=lic.note,
                 username=username,
+                bound_player_name=bound_player_name,
                 hwid_hash=hwid_hash,
                 hwid_pending_reset=hwid_pending_reset,
                 activated_at=activated_at,

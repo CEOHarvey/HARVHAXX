@@ -17,6 +17,7 @@ type LicenseRow = {
   status: string;
   note: string | null;
   username: string | null;
+  bound_player_name?: string | null;
   hwid_hash: string | null;
   hwid_pending_reset: boolean;
   activated_at: string | null;
@@ -319,6 +320,7 @@ export default function AdminPage() {
               <th>Duration</th>
               <th>Status</th>
               <th>User</th>
+              <th>Bound player</th>
               <th>HWID</th>
               <th>Remaining</th>
               {showActions && <th>Actions</th>}
@@ -327,7 +329,7 @@ export default function AdminPage() {
           <tbody>
             {rows.length === 0 ? (
               <tr>
-                <td colSpan={showActions ? 8 : 7} className="muted">
+                <td colSpan={showActions ? 9 : 8} className="muted">
                   No licenses in this tab.
                 </td>
               </tr>
@@ -357,6 +359,7 @@ export default function AdminPage() {
                       <span className={`badge ${l.status}`}>{l.status}</span>
                     </td>
                     <td>{l.username ?? "—"}</td>
+                    <td>{l.bound_player_name ?? "—"}</td>
                     <td>{displayHwid(l.hwid_hash, l.hwid_pending_reset)}</td>
                     <td>
                       {l.status === "active" && l.expires_at ? (
