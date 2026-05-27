@@ -18,7 +18,8 @@ class Settings(BaseSettings):
 
     # HWID policy
     # Max devices auto-bound per user account (no request workflow).
-    max_hwids_per_user: int = 3
+    # Set to 0 for unlimited.
+    max_hwids_per_user: int = 0
 
     @property
     def discord_webhook_expired_resolved(self) -> str:

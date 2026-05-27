@@ -65,9 +65,10 @@ def require_approved_hwid(db: Session, user: User, hwid_hash: str) -> None:
     if is_hwid_approved(db, user.id, hwid_hash):
         return
     # Auto-bind new device up to a limit (no request workflow).
-    max_devices = max(1, int(getattr(settings, "max_hwids_per_user", 3) or 3))
+    raw_limit = int(getattr(settings, "max_hwids_per_user", 0) or 0)
+    max_devices = raw_limit  # 0 means unlimited
     current = db.query(UserHwid).filter(UserHwid.user_id == user.id).count()
-    if current < max_devices:
+    if max_devices <= 0 or current < max_devices:
         add_approved_hwid(db, user.id, hwid_hash, label="auto")
         db.commit()
         return
@@ -87,6 +88,6 @@ def hwid_allowed_for_activation(db: Session, user_id: int, activation_hwid: str,
     if is_hwid_approved(db, user_id, request_hwid):
         return True
     # Allow new device if user has remaining auto-bind slots.
-    max_devices = max(1, int(getattr(settings, "max_hwids_per_user", 3) or 3))
+    max_devices = int(getattr(settings, "max_hwids_per_user", 0) or 0)  # 0 = unlimited
     current = db.query(UserHwid).filter(UserHwid.user_id == user_id).count()
-    return current < max_devices
+    return max_devices <= 0 or current < max_devices
