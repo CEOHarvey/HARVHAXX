@@ -44,6 +44,17 @@ class LicenseStatusResponse(BaseModel):
     message: str = ""
 
 
+class PlayerBindRequest(BaseModel):
+    player_name: str = Field(min_length=2, max_length=40)
+
+
+class PlayerBindResponse(BaseModel):
+    allowed: bool
+    bound_name: str | None = None
+    current_name: str | None = None
+    is_new_bind: bool = False
+    message: str = ""
+
 class GenerateLicensesRequest(BaseModel):
     duration_seconds: int = Field(ge=1, le=31536000, description="Min 1 second, max 365 days")
     quantity: int = Field(ge=1, le=100)
@@ -79,6 +90,7 @@ class SessionRow(BaseModel):
     is_online: bool
     seconds_idle: int
     bound_hwid_count: int = 0
+    bound_player_name: str | None = None
 
 
 class ExpiryLogRow(BaseModel):

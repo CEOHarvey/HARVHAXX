@@ -7,7 +7,7 @@ from fastapi.middleware.cors import CORSMiddleware
 
 from app.config import settings
 from app.database import Base, engine
-from app.routes import admin, auth, license
+from app.routes import admin, auth, license, player
 
 logger = logging.getLogger(__name__)
 
@@ -41,6 +41,20 @@ def _migrate() -> None:
                 else:
                     conn.execute(text("ALTER TABLE licenses ADD COLUMN IF NOT EXISTS category VARCHAR(64) DEFAULT 'standard'"))
                 conn.execute(text("UPDATE licenses SET category = 'standard' WHERE category IS NULL"))
+
+    if "users" in tables:
+        cols = {c["name"] for c in insp.get_columns("users")}
+        with engine.begin() as conn:
+            if "bound_player_name" not in cols:
+                if dialect == "sqlite":
+                    conn.execute(text("ALTER TABLE users ADD COLUMN bound_player_name VARCHAR(64)"))
+                else:
+                    conn.execute(text("ALTER TABLE users ADD COLUMN IF NOT EXISTS bound_player_name VARCHAR(64)"))
+            if "bound_player_at" not in cols:
+                if dialect == "sqlite":
+                    conn.execute(text("ALTER TABLE users ADD COLUMN bound_player_at DATETIME"))
+                else:
+                    conn.execute(text("ALTER TABLE users ADD COLUMN IF NOT EXISTS bound_player_at TIMESTAMPTZ"))
 
     if "activations" in tables:
         cols = {c["name"] for c in insp.get_columns("activations")}
@@ -88,6 +102,7 @@ app.add_middleware(
 
 app.include_router(auth.router)
 app.include_router(license.router)
+app.include_router(player.router)
 app.include_router(admin.router)
 
 

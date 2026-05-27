@@ -29,6 +29,8 @@ class User(Base):
     email: Mapped[str] = mapped_column(String(255), unique=True, index=True)
     password_hash: Mapped[str] = mapped_column(String(255))
     created_at: Mapped[datetime] = mapped_column(DateTime(timezone=True), server_default=func.now())
+    bound_player_name: Mapped[Optional[str]] = mapped_column(String(64), nullable=True)
+    bound_player_at: Mapped[Optional[datetime]] = mapped_column(DateTime(timezone=True), nullable=True)
 
     activations = relationship("Activation", back_populates="user")
     session = relationship("UserSession", back_populates="user", uselist=False)

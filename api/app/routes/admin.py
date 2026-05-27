@@ -169,6 +169,7 @@ def list_sessions(_: str = Depends(get_admin), db: Session = Depends(get_db)):
                 is_online=online,
                 seconds_idle=_seconds_idle(sess.last_seen_at),
                 bound_hwid_count=bound_count,
+                bound_player_name=getattr(sess.user, "bound_player_name", None),
             )
         )
     out.sort(key=lambda r: (not r.is_online, r.seconds_idle))
