@@ -33,6 +33,7 @@ type SessionRow = {
   is_online: boolean;
   seconds_idle: number;
   bound_hwid_count: number;
+  bound_player_name?: string | null;
 };
 
 type ExpiryLogRow = {
@@ -693,6 +694,7 @@ export default function AdminPage() {
                 <tr>
                   <th>Status</th>
                   <th>User</th>
+                  <th>Bound player</th>
                   <th>Bound HWIDs</th>
                   <th>Current HWID</th>
                   <th>License</th>
@@ -703,7 +705,7 @@ export default function AdminPage() {
               <tbody>
                 {sessions.length === 0 ? (
                   <tr>
-                    <td colSpan={7} className="muted">
+                    <td colSpan={8} className="muted">
                       No sessions yet.
                     </td>
                   </tr>
@@ -716,6 +718,7 @@ export default function AdminPage() {
                         </span>
                       </td>
                       <td>{s.username}</td>
+                      <td>{s.bound_player_name ?? "—"}</td>
                       <td>{s.bound_hwid_count}</td>
                       <td>
                         <code className="hwid-full">{s.hwid_hash}</code>
