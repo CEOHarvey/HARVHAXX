@@ -16,6 +16,10 @@ class Settings(BaseSettings):
     # Legacy alias → expired channel
     discord_webhook_url: str = ""
 
+    # HWID policy
+    # Max devices auto-bound per user account (no request workflow).
+    max_hwids_per_user: int = 3
+
     @property
     def discord_webhook_expired_resolved(self) -> str:
         return self.discord_webhook_expired.strip() or self.discord_webhook_url.strip()

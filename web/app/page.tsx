@@ -6,7 +6,7 @@ import { ThemeToggle } from "./components/ThemeToggle";
 const API = process.env.NEXT_PUBLIC_API_URL ?? "http://127.0.0.1:8000";
 
 type DurUnit = "sec" | "min" | "hour" | "day";
-type TabId = "generate" | "active" | "unused" | "expired" | "hwid" | "sessions";
+type TabId = "generate" | "active" | "unused" | "expired" | "sessions";
 
 type LicenseRow = {
   id: number;
@@ -126,6 +126,7 @@ export default function AdminPage() {
       fetch(`${API}/admin/licenses`, { headers }),
       fetch(`${API}/admin/sessions`, { headers }),
       fetch(`${API}/admin/expiry-logs`, { headers }),
+      // keep call for backward compatibility; tab removed
       fetch(`${API}/admin/hwid-requests?status_filter=pending`, { headers }),
     ]);
     if (!licRes.ok) throw new Error(await licRes.text());
@@ -305,7 +306,6 @@ export default function AdminPage() {
     { id: "active", label: "Active", count: active.length },
     { id: "unused", label: "Unused", count: unused.length },
     { id: "expired", label: "Expired logs", count: expiryLogs.length },
-    { id: "hwid", label: "HWID requests", count: hwidRequests.length },
     { id: "sessions", label: "Sessions", count: onlineSessions.length },
   ];
 
@@ -625,57 +625,6 @@ export default function AdminPage() {
                         <code className="hwid-full">{r.hwid_hash ?? "—"}</code>
                       </td>
                       <td>{new Date(r.expired_at).toLocaleString()}</td>
-                    </tr>
-                  ))
-                )}
-              </tbody>
-            </table>
-          </div>
-        </section>
-      )}
-
-      {tab === "hwid" && (
-        <section className="card">
-          <h2 className="section-title">HWID bind requests</h2>
-          <div className="info-banner">
-            User logs in from a new PC → request appears here. Approve to add that device. They can switch PCs
-            anytime, but <strong>cannot log in on two PCs at once</strong>.
-          </div>
-          <div className="table-wrap">
-            <table>
-              <thead>
-                <tr>
-                  <th>User</th>
-                  <th>HWID</th>
-                  <th>Requested</th>
-                  <th></th>
-                </tr>
-              </thead>
-              <tbody>
-                {hwidRequests.length === 0 ? (
-                  <tr>
-                    <td colSpan={4} className="muted">
-                      No pending HWID requests.
-                    </td>
-                  </tr>
-                ) : (
-                  hwidRequests.map((r) => (
-                    <tr key={r.id}>
-                      <td>{r.username}</td>
-                      <td>
-                        <code className="hwid-full">{r.hwid_hash}</code>
-                      </td>
-                      <td>{new Date(r.requested_at).toLocaleString()}</td>
-                      <td>
-                        <div className="actions">
-                          <button type="button" onClick={() => approveHwid(r.id)}>
-                            Accept
-                          </button>
-                          <button type="button" className="danger" onClick={() => rejectHwid(r.id)}>
-                            Reject
-                          </button>
-                        </div>
-                      </td>
                     </tr>
                   ))
                 )}

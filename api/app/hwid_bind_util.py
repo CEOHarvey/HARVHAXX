@@ -7,6 +7,7 @@ from datetime import datetime, timezone
 from fastapi import HTTPException, status
 from sqlalchemy.orm import Session
 
+from app.config import settings
 from app.models import HwidBindRequest, HwidBindRequestStatus, User, UserHwid
 
 
@@ -63,11 +64,16 @@ def ensure_bind_request(db: Session, user: User, hwid_hash: str) -> HwidBindRequ
 def require_approved_hwid(db: Session, user: User, hwid_hash: str) -> None:
     if is_hwid_approved(db, user.id, hwid_hash):
         return
-    ensure_bind_request(db, user, hwid_hash)
-    db.commit()
+    # Auto-bind new device up to a limit (no request workflow).
+    max_devices = max(1, int(getattr(settings, "max_hwids_per_user", 3) or 3))
+    current = db.query(UserHwid).filter(UserHwid.user_id == user.id).count()
+    if current < max_devices:
+        add_approved_hwid(db, user.id, hwid_hash, label="auto")
+        db.commit()
+        return
     raise HTTPException(
         status_code=status.HTTP_403_FORBIDDEN,
-        detail="This PC is not authorized. Request sent — wait for admin to approve your HWID bind.",
+        detail=f"Device limit reached ({current}/{max_devices}). Contact admin to reset/remove an old HWID.",
     )
 
 
@@ -78,4 +84,9 @@ def hwid_allowed_for_activation(db: Session, user_id: int, activation_hwid: str,
         return True
     if activation_hwid == request_hwid:
         return True
-    return is_hwid_approved(db, user_id, request_hwid)
+    if is_hwid_approved(db, user_id, request_hwid):
+        return True
+    # Allow new device if user has remaining auto-bind slots.
+    max_devices = max(1, int(getattr(settings, "max_hwids_per_user", 3) or 3))
+    current = db.query(UserHwid).filter(UserHwid.user_id == user_id).count()
+    return current < max_devices
