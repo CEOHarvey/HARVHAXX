@@ -14,13 +14,34 @@ if (-not (Test-Path $ko)) {
     exit 1
 }
 
+function Test-VenvHealthy {
+    param([string]$PythonExe)
+    if (-not (Test-Path $PythonExe)) { return $false }
+    & $PythonExe -c "import sys; sys.exit(0)" 2>$null | Out-Null
+    return $LASTEXITCODE -eq 0
+}
+
 $venv = Join-Path $root ".venv"
+$venvPython = Join-Path $venv "Scripts\python.exe"
+if ((Test-Path $venv) -and -not (Test-VenvHealthy $venvPython)) {
+    Write-Host "Removing broken .venv (project was moved or Python path changed)..."
+    Remove-Item -Recurse -Force $venv
+}
 if (-not (Test-Path $venv)) {
     Write-Host "Creating venv..."
     python -m venv $venv
+    if ($LASTEXITCODE -ne 0) {
+        Write-Host "ERROR: python -m venv failed. Install Python 3.10+ and ensure 'python' is on PATH." -ForegroundColor Red
+        exit 1
+    }
+    $venvPython = Join-Path $venv "Scripts\python.exe"
 }
-& (Join-Path $venv "Scripts\pip.exe") install -q -r (Join-Path $root "requirements.txt")
-& (Join-Path $venv "Scripts\pip.exe") install -q pyinstaller
+
+# Use python -m pip / PyInstaller (not Scripts\pip.exe) — survives folder moves.
+& $venvPython -m pip install -q -r (Join-Path $root "requirements.txt")
+if ($LASTEXITCODE -ne 0) { exit $LASTEXITCODE }
+& $venvPython -m pip install -q pyinstaller
+if ($LASTEXITCODE -ne 0) { exit $LASTEXITCODE }
 
 $appsettings = Join-Path $root "appsettings.json"
 $assets = Join-Path $root "loader\assets"
@@ -33,7 +54,7 @@ if (-not (Test-Path (Join-Path $assets "brand.png"))) {
 }
 
 Write-Host "Preparing app.ico from brand.png..."
-& (Join-Path $venv "Scripts\python.exe") (Join-Path $root "scripts\prepare_assets.py")
+& $venvPython (Join-Path $root "scripts\prepare_assets.py")
 $brandFile = Join-Path $assets "brand.png"
 Write-Host "  brand.png updated: $((Get-Item $brandFile).LastWriteTime)"
 
@@ -47,7 +68,7 @@ if (Test-Path $icon) {
 }
 
 Write-Host "Building LicenseLoader.exe (PyInstaller onefile)..."
-& (Join-Path $venv "Scripts\pyinstaller.exe") --noconfirm --clean --onefile --windowed `
+& $venvPython -m PyInstaller --noconfirm --clean --onefile --windowed `
     --name LicenseLoader `
     --paths $root `
     --hidden-import certifi `

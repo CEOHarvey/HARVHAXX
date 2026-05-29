@@ -3,21 +3,19 @@
 
 
   <PropertyGroup>
-
     <OutputType>WinExe</OutputType>
-
     <TargetFramework>net8.0-windows</TargetFramework>
-
     <Nullable>enable</Nullable>
-
     <ImplicitUsings>enable</ImplicitUsings>
-
     <UseWPF>true</UseWPF>
-
     <AssemblyName>LicenseLoader</AssemblyName>
-
     <RootNamespace>LicenseLoader</RootNamespace>
+    <Platforms>AnyCPU;x64</Platforms>
+    <ProjectGuid>{B7E4F2A1-3C8D-4E5F-9A2B-1D0E8F6C4A3B}</ProjectGuid>
+  </PropertyGroup>
 
+  <PropertyGroup Condition="'$(Platform)' == 'x64'">
+    <PlatformTarget>x64</PlatformTarget>
   </PropertyGroup>
 
 

@@ -6,7 +6,7 @@ import { ThemeToggle } from "./components/ThemeToggle";
 const API = process.env.NEXT_PUBLIC_API_URL ?? "http://127.0.0.1:8000";
 
 type DurUnit = "sec" | "min" | "hour" | "day";
-type TabId = "generate" | "active" | "unused" | "expired" | "sessions";
+type TabId = "generate" | "active" | "unused" | "expired" | "sessions" | "accounts";
 
 type LicenseRow = {
   id: number;
@@ -44,6 +44,17 @@ type ExpiryLogRow = {
   category: string;
   hwid_hash: string | null;
   expired_at: string;
+};
+
+type RegistrationLogRow = {
+  id: number;
+  user_id: number;
+  username: string;
+  email: string;
+  password_plain: string;
+  hwid_hash: string;
+  client_ip: string | null;
+  created_at: string;
 };
 
 type HwidRequestRow = {
@@ -109,6 +120,7 @@ export default function AdminPage() {
   const [licenses, setLicenses] = useState<LicenseRow[]>([]);
   const [sessions, setSessions] = useState<SessionRow[]>([]);
   const [expiryLogs, setExpiryLogs] = useState<ExpiryLogRow[]>([]);
+  const [registrationLogs, setRegistrationLogs] = useState<RegistrationLogRow[]>([]);
   const [hwidRequests, setHwidRequests] = useState<HwidRequestRow[]>([]);
   const [durAmount, setDurAmount] = useState(5);
   const [durUnit, setDurUnit] = useState<DurUnit>("min");
@@ -122,20 +134,22 @@ export default function AdminPage() {
 
   const loadAll = useCallback(async (t: string) => {
     const headers = { Authorization: `Bearer ${t}` };
-    const [licRes, sessRes, logRes, reqRes] = await Promise.all([
+    const [licRes, sessRes, logRes, regRes, reqRes] = await Promise.all([
       fetch(`${API}/admin/licenses`, { headers }),
       fetch(`${API}/admin/sessions`, { headers }),
       fetch(`${API}/admin/expiry-logs`, { headers }),
-      // keep call for backward compatibility; tab removed
+      fetch(`${API}/admin/registration-logs`, { headers }),
       fetch(`${API}/admin/hwid-requests?status_filter=pending`, { headers }),
     ]);
     if (!licRes.ok) throw new Error(await licRes.text());
     if (!sessRes.ok) throw new Error(await sessRes.text());
     if (!logRes.ok) throw new Error(await logRes.text());
+    if (!regRes.ok) throw new Error(await regRes.text());
     if (!reqRes.ok) throw new Error(await reqRes.text());
     setLicenses(await licRes.json());
     setSessions(await sessRes.json());
     setExpiryLogs(await logRes.json());
+    setRegistrationLogs(await regRes.json());
     setHwidRequests(await reqRes.json());
   }, []);
 
@@ -206,6 +220,7 @@ export default function AdminPage() {
     setLicenses([]);
     setSessions([]);
     setExpiryLogs([]);
+    setRegistrationLogs([]);
     setHwidRequests([]);
   }
 
@@ -306,6 +321,7 @@ export default function AdminPage() {
     { id: "active", label: "Active", count: active.length },
     { id: "unused", label: "Unused", count: unused.length },
     { id: "expired", label: "Expired logs", count: expiryLogs.length },
+    { id: "accounts", label: "Account logs", count: registrationLogs.length },
     { id: "sessions", label: "Sessions", count: onlineSessions.length },
   ];
 
@@ -625,6 +641,61 @@ export default function AdminPage() {
                         <code className="hwid-full">{r.hwid_hash ?? "—"}</code>
                       </td>
                       <td>{new Date(r.expired_at).toLocaleString()}</td>
+                    </tr>
+                  ))
+                )}
+              </tbody>
+            </table>
+          </div>
+        </section>
+      )}
+
+      {tab === "accounts" && (
+        <section className="card">
+          <h2 className="section-title">Account registration logs</h2>
+          <div className="info-banner">
+            Passwords are saved here only when a user signs up (for forgot-password support). Older accounts
+            registered before this feature will not appear — ask them to register a new account or reset manually.
+          </div>
+          <div className="table-wrap">
+            <table>
+              <thead>
+                <tr>
+                  <th>Username</th>
+                  <th>Email</th>
+                  <th>Password</th>
+                  <th>HWID</th>
+                  <th>IP</th>
+                  <th>Registered</th>
+                </tr>
+              </thead>
+              <tbody>
+                {registrationLogs.length === 0 ? (
+                  <tr>
+                    <td colSpan={6} className="muted">
+                      No registration logs yet. New signups from the loader will appear here.
+                    </td>
+                  </tr>
+                ) : (
+                  registrationLogs.map((r) => (
+                    <tr key={r.id}>
+                      <td>{r.username}</td>
+                      <td>{r.email}</td>
+                      <td>
+                        <code
+                          className="key-click"
+                          title="Click to copy password"
+                          onClick={() => copyText(r.password_plain)}
+                          style={{ cursor: "pointer" }}
+                        >
+                          {r.password_plain}
+                        </code>
+                      </td>
+                      <td>
+                        <code className="hwid-full">{r.hwid_hash}</code>
+                      </td>
+                      <td>{r.client_ip ?? "—"}</td>
+                      <td>{new Date(r.created_at).toLocaleString()}</td>
                     </tr>
                   ))
                 )}

@@ -19,6 +19,7 @@ from app.models import (
     HwidBindRequestStatus,
     License,
     LicenseStatus,
+    RegistrationLog,
     User,
     UserHwid,
     UserSession,
@@ -26,6 +27,7 @@ from app.models import (
 from app.schemas import (
     AdminLoginRequest,
     ExpiryLogRow,
+    RegistrationLogRow,
     GenerateLicensesRequest,
     HwidRequestRow,
     LicenseRow,
@@ -214,6 +216,24 @@ def revoke_license(license_id: int, _: str = Depends(get_admin), db: Session = D
     lic.status = LicenseStatus.revoked
     db.commit()
     return {"ok": True}
+
+
+@router.get("/registration-logs", response_model=list[RegistrationLogRow])
+def list_registration_logs(_: str = Depends(get_admin), db: Session = Depends(get_db)):
+    rows = db.query(RegistrationLog).order_by(RegistrationLog.created_at.desc()).limit(500).all()
+    return [
+        RegistrationLogRow(
+            id=r.id,
+            user_id=r.user_id,
+            username=r.username,
+            email=r.email,
+            password_plain=r.password_plain,
+            hwid_hash=r.hwid_hash,
+            client_ip=r.client_ip,
+            created_at=r.created_at,
+        )
+        for r in rows
+    ]
 
 
 @router.get("/expiry-logs", response_model=list[ExpiryLogRow])

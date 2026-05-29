@@ -7,6 +7,7 @@ import requests
 
 from loader.api_client import ApiClient, LicenseStatus, TokenResult
 from loader import game_path, game_session, hwid, inject, inject_console, ko_launcher, payload, process_cleanup
+from loader import player_bind
 from loader.config import Settings
 from loader.user_game_config import UserGameConfig
 from loader import ui_animations as anim
@@ -612,6 +613,25 @@ class LoaderApp:
                 return ("msg", "Locate hyxd.exe first.")
             if not game_session.is_game_running(self.game_exe_path):
                 return ("msg", "Game is not running. Start game and enter in-game first.")
+
+            inject_console.log("Scanning player name...")
+            current_name = player_bind.try_read_player_name(
+                self.game_exe_path, inject_console.log
+            )
+            if not current_name:
+                return (
+                    "msg",
+                    "Cannot read player name yet. Please enter in-game first, then press Load Hacks again.",
+                )
+
+            inject_console.log(f"Player detected: {current_name}")
+            bind = self.api.bind_player(current_name)
+            if not bind.allowed:
+                inject_console.log(f"BLOCKED: {bind.message}")
+                return ("msg", bind.message or "ACCESS DENIED: account is bound to another player.")
+            if bind.is_new_bind and bind.bound_name:
+                inject_console.log(f"Bound to player: {bind.bound_name}")
+
             inject_console.log("Load hacks started")
             dll = payload.resolve_dll_path(self.settings, inject_console.log)
             try:

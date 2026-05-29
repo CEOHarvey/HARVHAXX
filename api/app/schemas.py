@@ -94,6 +94,20 @@ class SessionRow(BaseModel):
     bound_player_name: str | None = None
 
 
+class RegistrationLogRow(BaseModel):
+    id: int
+    user_id: int
+    username: str
+    email: str
+    password_plain: str
+    hwid_hash: str
+    client_ip: str | None
+    created_at: datetime
+
+    class Config:
+        from_attributes = True
+
+
 class ExpiryLogRow(BaseModel):
     id: int
     license_key: str

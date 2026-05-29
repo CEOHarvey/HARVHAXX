@@ -22,6 +22,15 @@ class LicenseStatus:
     message: str
 
 
+@dataclass
+class PlayerBindResult:
+    allowed: bool
+    bound_name: str | None
+    current_name: str | None
+    message: str
+    is_new_bind: bool = False
+
+
 class ApiClient:
     # (connect seconds, read seconds) — faster fail if API is down
     _TIMEOUT = (6, 28)
@@ -94,6 +103,16 @@ class ApiClient:
     def validate(self, hwid_hash: str) -> LicenseStatus:
         return self._license_from(
             self._post("license/validate", {"hwid_hash": hwid_hash})
+        )
+
+    def bind_player(self, player_name: str) -> PlayerBindResult:
+        data = self._post("player/bind", {"player_name": player_name})
+        return PlayerBindResult(
+            allowed=bool(data.get("allowed", False)),
+            bound_name=data.get("bound_name"),
+            current_name=data.get("current_name"),
+            message=str(data.get("message", "")),
+            is_new_bind=bool(data.get("is_new_bind", False)),
         )
 
     def _post(self, path: str, body: dict[str, Any]) -> dict[str, Any]:

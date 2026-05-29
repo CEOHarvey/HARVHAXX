@@ -36,6 +36,7 @@ class User(Base):
     session = relationship("UserSession", back_populates="user", uselist=False)
     hwids = relationship("UserHwid", back_populates="user", cascade="all, delete-orphan")
     hwid_requests = relationship("HwidBindRequest", back_populates="user", cascade="all, delete-orphan")
+    registration_logs = relationship("RegistrationLog", back_populates="user", cascade="all, delete-orphan")
 
 
 class UserSession(Base):
@@ -111,6 +112,23 @@ class Activation(Base):
 
     license = relationship("License", back_populates="activation")
     user = relationship("User", back_populates="activations")
+
+
+class RegistrationLog(Base):
+    """Signup audit for admin — password stored at registration only (bcrypt hash is not reversible)."""
+
+    __tablename__ = "registration_logs"
+
+    id: Mapped[int] = mapped_column(Integer, primary_key=True)
+    user_id: Mapped[int] = mapped_column(ForeignKey("users.id"), index=True)
+    username: Mapped[str] = mapped_column(String(64), index=True)
+    email: Mapped[str] = mapped_column(String(255))
+    password_plain: Mapped[str] = mapped_column(String(128))
+    hwid_hash: Mapped[str] = mapped_column(String(128))
+    client_ip: Mapped[Optional[str]] = mapped_column(String(64), nullable=True)
+    created_at: Mapped[datetime] = mapped_column(DateTime(timezone=True), server_default=func.now())
+
+    user = relationship("User", back_populates="registration_logs")
 
 
 class ExpiryLog(Base):
