@@ -121,15 +121,16 @@ if ($Clean) {
     $pyiArgs = @("--clean") + $pyiArgs
 }
 
-Write-Step "PyInstaller $(if ($Clean) { '(full clean)' } else { '(incremental — use -Clean if icon stuck)' })..."
+Write-Step "PyInstaller $(if ($Clean) { '(full clean)' } else { '(incremental - use -Clean if icon stuck)' })..."
 & $venvPython -m PyInstaller @pyiArgs
 if ($LASTEXITCODE -ne 0) { exit $LASTEXITCODE }
 
 $out = Join-Path $distDir "LicenseLoader.exe"
 if (Test-Path $out) {
     $mb = [math]::Round((Get-Item $out).Length / 1MB, 1)
+    $elapsedSec = [math]::Round($sw.Elapsed.TotalSeconds)
     Write-Host ""
-    Write-Host "SUCCESS ($([math]::Round($sw.Elapsed.TotalSeconds))s):" -ForegroundColor Green
+    Write-Host "SUCCESS (${elapsedSec}s):" -ForegroundColor Green
     Write-Host $out
     Write-Host "Size: $mb MB (no .NET 8 needed)"
     Write-Host ""
