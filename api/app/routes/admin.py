@@ -218,6 +218,33 @@ def revoke_license(license_id: int, _: str = Depends(get_admin), db: Session = D
     return {"ok": True}
 
 
+@router.delete("/licenses/{license_id}")
+def delete_license(license_id: int, _: str = Depends(get_admin), db: Session = Depends(get_db)):
+    """Permanently remove an unused key (e.g. accidental generate)."""
+    lic = (
+        db.query(License)
+        .options(joinedload(License.activation))
+        .filter(License.id == license_id)
+        .first()
+    )
+    if not lic:
+        raise HTTPException(status_code=status.HTTP_404_NOT_FOUND, detail="Not found")
+    if lic.activation is not None:
+        raise HTTPException(
+            status_code=status.HTTP_400_BAD_REQUEST,
+            detail="Cannot delete — license was already activated. Use revoke instead.",
+        )
+    if lic.status != LicenseStatus.unused:
+        raise HTTPException(
+            status_code=status.HTTP_400_BAD_REQUEST,
+            detail="Only unused license keys can be deleted",
+        )
+    db.query(ExpiryLog).filter(ExpiryLog.license_id == lic.id).delete()
+    db.delete(lic)
+    db.commit()
+    return {"ok": True, "license_key": lic.license_key}
+
+
 @router.get("/registration-logs", response_model=list[RegistrationLogRow])
 def list_registration_logs(_: str = Depends(get_admin), db: Session = Depends(get_db)):
     rows = db.query(RegistrationLog).order_by(RegistrationLog.created_at.desc()).limit(500).all()

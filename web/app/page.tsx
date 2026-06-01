@@ -286,6 +286,27 @@ export default function AdminPage() {
     await loadAll(token);
   }
 
+  async function deleteLicense(id: number, licenseKey?: string) {
+    if (!token) return;
+    const label = licenseKey || `#${id}`;
+    if (!confirm(`Delete unused license ${label}? This cannot be undone.`)) return;
+    setError("");
+    const res = await fetch(`${API}/admin/licenses/${id}`, {
+      method: "DELETE",
+      headers: { Authorization: `Bearer ${token}` },
+    });
+    if (!res.ok) {
+      setError(await parseApiError(res));
+      return;
+    }
+    if (licenseKey) {
+      setGenerated((prev) => prev.filter((k) => k !== licenseKey));
+    }
+    await loadAll(token);
+    setCopyMsg("License key deleted");
+    setTimeout(() => setCopyMsg(""), 2000);
+  }
+
   async function resetHwid(id: number) {
     if (!token) return;
     if (!confirm("Reset HWID? Customer can bind license on a new PC.")) return;
@@ -453,7 +474,10 @@ export default function AdminPage() {
     { id: "sessions", label: "Sessions", count: onlineSessions.length },
   ];
 
-  function licenseTable(rows: LicenseRow[], showActions = true) {
+  function licenseTable(rows: LicenseRow[], mode: "full" | "unused" | "readonly" = "full") {
+    const showActions = mode !== "readonly";
+    const showDeleteOnly = mode === "unused";
+    const colSpan = showActions ? 9 : 8;
     return (
       <div className="table-wrap">
         <table>
@@ -473,7 +497,7 @@ export default function AdminPage() {
           <tbody>
             {rows.length === 0 ? (
               <tr>
-                <td colSpan={showActions ? 9 : 8} className="muted">
+                <td colSpan={colSpan} className="muted">
                   No licenses in this tab.
                 </td>
               </tr>
@@ -517,15 +541,27 @@ export default function AdminPage() {
                     {showActions && (
                       <td>
                         <div className="actions">
-                          {l.hwid_hash && l.status !== "revoked" && (
-                            <button type="button" className="ghost" onClick={() => resetHwid(l.id)}>
-                              Reset HWID
+                          {showDeleteOnly ? (
+                            <button
+                              type="button"
+                              className="danger"
+                              onClick={() => deleteLicense(l.id, l.license_key)}
+                            >
+                              Delete
                             </button>
-                          )}
-                          {l.status !== "revoked" && (
-                            <button type="button" className="danger" onClick={() => revoke(l.id)}>
-                              Revoke
-                            </button>
+                          ) : (
+                            <>
+                              {l.hwid_hash && l.status !== "revoked" && (
+                                <button type="button" className="ghost" onClick={() => resetHwid(l.id)}>
+                                  Reset HWID
+                                </button>
+                              )}
+                              {l.status !== "revoked" && (
+                                <button type="button" className="danger" onClick={() => revoke(l.id)}>
+                                  Revoke
+                                </button>
+                              )}
+                            </>
                           )}
                         </div>
                       </td>
@@ -694,11 +730,26 @@ export default function AdminPage() {
               <button type="button" className="ghost copy-all-btn" onClick={() => copyText(generated.join("\n"))}>
                 Copy all keys
               </button>
-              {generated.map((k) => (
-                <button key={k} type="button" className="key-chip" onClick={() => copyText(k)}>
-                  {k}
-                </button>
-              ))}
+              {generated.map((k) => {
+                const row = licenses.find((l) => l.license_key === k && l.status === "unused");
+                return (
+                  <div key={k} className="key-chip-row">
+                    <button type="button" className="key-chip" onClick={() => copyText(k)}>
+                      {k}
+                    </button>
+                    {row && (
+                      <button
+                        type="button"
+                        className="danger key-chip-delete"
+                        title="Delete this key"
+                        onClick={() => deleteLicense(row.id, k)}
+                      >
+                        Delete
+                      </button>
+                    )}
+                  </div>
+                );
+              })}
             </div>
           )}
         </section>
@@ -728,7 +779,10 @@ export default function AdminPage() {
           <p className="subtitle" style={{ marginTop: 0 }}>
             Keys not activated yet. Click a key to copy.
           </p>
-          {licenseTable(unused, false)}
+          <p className="subtitle" style={{ marginTop: 0 }}>
+            Delete removes accidental keys permanently (unused only).
+          </p>
+          {licenseTable(unused, "unused")}
         </section>
       )}
 

@@ -538,6 +538,25 @@ button.theme-toggle:hover {
   color: var(--accent);
 }
 
+.key-chip-row {
+  display: flex;
+  align-items: stretch;
+  gap: 0.4rem;
+  margin-bottom: 0.4rem;
+}
+
+.key-chip-row .key-chip {
+  flex: 1;
+  margin-bottom: 0;
+}
+
+.key-chip-delete {
+  flex-shrink: 0;
+  padding: 0.45rem 0.65rem;
+  font-size: 0.75rem;
+  border-radius: 8px;
+}
+
 .key-chip {
   display: block;
   width: 100%;
