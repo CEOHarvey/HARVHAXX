@@ -40,8 +40,8 @@ class LoaderApp:
         self.bound_player_name: str | None = None
 
         root.title(theme.APP_NAME)
-        root.geometry("380x620")
-        root.minsize(380, 620)
+        root.geometry("362x520")
+        root.minsize(362, 520)
         root.resizable(False, False)
         theme.style_root(root)
         self.brand = ui_assets.BrandAssets()
@@ -75,7 +75,7 @@ class LoaderApp:
         self._current_panel = name
         for key, frame in self.panels.items():
             if key == name:
-                frame.pack(fill=tk.BOTH, expand=True, padx=14, pady=10)
+                frame.pack(fill=tk.BOTH, expand=True, padx=theme.PAD_PANEL[0], pady=theme.PAD_PANEL[1])
                 anim.fade_in_panel(frame, self.root)
             else:
                 frame.pack_forget()
@@ -184,74 +184,69 @@ class LoaderApp:
             body,
             text="Welcome",
             bg=theme.CARD,
-            fg=theme.TEXT,
+            fg=theme.ACCENT,
             font=theme.FONT_SUBTITLE,
         )
-        self.welcome_lbl.pack(anchor=tk.CENTER, pady=(0, 10))
+        self.welcome_lbl.pack(anchor=tk.CENTER, pady=(0, 4))
 
-        lic_inner = theme.card_panel(body)
-        theme.section_label(lic_inner, "License").pack(fill=tk.X)
+        dash = theme.card_panel(body)
+        theme.section_label(dash, "License").pack(fill=tk.X)
         self.status_lbl = tk.Label(
-            lic_inner,
+            dash,
             text="ACTIVE",
             bg=theme.INPUT_BG,
             fg=theme.SUCCESS,
             font=theme.FONT_BODY_BOLD,
         )
-        self.status_lbl.pack(anchor=tk.CENTER, pady=(4, 0))
+        self.status_lbl.pack(anchor=tk.CENTER)
         self.expires_lbl = tk.Label(
-            lic_inner, text="", bg=theme.INPUT_BG, fg=theme.MUTED, font=theme.FONT_LABEL
+            dash, text="", bg=theme.INPUT_BG, fg=theme.MUTED, font=theme.FONT_CAPTION
         )
-        self.expires_lbl.pack(anchor=tk.CENTER, pady=(4, 0))
+        self.expires_lbl.pack(anchor=tk.CENTER)
         self.remaining_lbl = tk.Label(
-            lic_inner,
+            dash,
             text="",
             bg=theme.INPUT_BG,
             fg=theme.ACCENT,
             font=theme.FONT_COUNTDOWN,
         )
-        self.remaining_lbl.pack(anchor=tk.CENTER, pady=(6, 0))
+        self.remaining_lbl.pack(anchor=tk.CENTER, pady=(2, 0))
 
-        bind_wrap = tk.Frame(body, bg=theme.CARD)
-        bind_wrap.pack(fill=tk.X)
-        _, self.bound_player_lbl, self.bound_player_sub = theme.player_bind_panel(bind_wrap)
-        refresh_row = tk.Frame(bind_wrap, bg=theme.CARD)
-        refresh_row.pack(fill=tk.X)
-        theme.ghost_button(refresh_row, "Refresh bound player", self._refresh_bound_player)
+        tk.Frame(dash, bg=theme.BORDER, height=1).pack(fill=tk.X, pady=(6, 0))
+        _, self.bound_player_lbl, self.bound_player_sub = theme.player_bind_panel(
+            dash, on_refresh=self._refresh_bound_player
+        )
 
-        extend_inner = theme.card_panel(body)
-        theme.section_label(extend_inner, "Extend license").pack(fill=tk.X)
-        tk.Label(
-            extend_inner,
-            text="Add another key to stack time",
+        tk.Frame(dash, bg=theme.BORDER, height=1).pack(fill=tk.X, pady=(6, 0))
+        theme.section_label(dash, "Extend").pack(fill=tk.X, pady=(4, 0))
+        extend_row = tk.Frame(dash, bg=theme.INPUT_BG)
+        extend_row.pack(fill=tk.X, pady=(2, 0))
+        self.extend_key = tk.Entry(
+            extend_row,
             bg=theme.INPUT_BG,
-            fg=theme.MUTED,
-            font=theme.FONT_LABEL,
-            anchor=tk.W,
-        ).pack(fill=tk.X, pady=(4, 0))
-        self.extend_key = theme.make_entry(extend_inner)
-        self.btn_extend = theme.accent_button(extend_inner, "Extend license", self._extend_license)
+            fg=theme.TEXT,
+            insertbackground=theme.ACCENT,
+            relief=tk.FLAT,
+            font=theme.FONT_BODY,
+            highlightthickness=1,
+            highlightbackground=theme.BORDER,
+            highlightcolor=theme.ACCENT,
+        )
+        self.extend_key.pack(side=tk.LEFT, fill=tk.X, expand=True, ipady=3)
+        self.btn_extend = theme.inline_button(extend_row, "Extend", self._extend_license)
+        self.btn_extend.pack(side=tk.RIGHT, padx=(6, 0))
 
-        self.game_path_lbl = tk.Label(
-            body,
-            text="",
-            bg=theme.CARD,
-            fg=theme.MUTED,
-            font=theme.FONT_CAPTION,
-            wraplength=320,
-            justify=tk.CENTER,
-        )
-        self.game_path_lbl.pack(anchor=tk.CENTER, pady=(8, 4))
+        self.game_path_lbl = tk.Label(body, text="", bg=theme.CARD, fg=theme.CARD)
         self.game_state_lbl = tk.Label(
-            body, text="", bg=theme.CARD, fg=theme.TEXT, font=theme.FONT_LABEL
+            body, text="", bg=theme.CARD, fg=theme.MUTED, font=theme.FONT_CAPTION, wraplength=300
         )
-        self.game_state_lbl.pack(anchor=tk.CENTER)
+        self.game_state_lbl.pack(anchor=tk.CENTER, pady=(4, 0))
         self.main_msg = theme.make_message(body)
 
         btn_row = tk.Frame(body, bg=theme.CARD)
-        btn_row.pack(fill=tk.X, pady=(8, 4))
-        self.btn_locate = theme.secondary_button(btn_row, "Locate game", self._locate_game)
-        self.btn_locate.pack(side=tk.LEFT, expand=True, fill=tk.X, padx=(0, 6))
+        btn_row.pack(fill=tk.X, pady=(4, 2))
+        self.btn_locate = theme.secondary_button(btn_row, "Locate", self._locate_game)
+        self.btn_locate.pack(side=tk.LEFT, expand=True, fill=tk.X, padx=(0, 4))
         self.btn_start = theme.secondary_button(btn_row, "Start game", self._start_game)
         self.btn_start.configure(
             bg=theme.ACCENT,
@@ -266,7 +261,7 @@ class LoaderApp:
         self.btn_load = theme.hero_button(body, "Load Hacks", self._load_hacks)
         theme.ghost_button(body, "Sign out", self._sign_out)
 
-        self.main_hint = theme.bottom_hint(f, "Load hack inside the game")
+        self.main_hint = theme.bottom_hint(f, "In-game: Load Hacks")
         return f
 
     @staticmethod
@@ -436,7 +431,7 @@ class LoaderApp:
         else:
             self.bound_player_lbl.config(text="Not bound", fg=theme.WARN)
             self.bound_player_sub.config(
-                text="Enter the game, then use Load Hacks to bind your player name",
+                text="Load Hacks in-game to bind",
                 fg=theme.MUTED,
             )
 
@@ -489,12 +484,10 @@ class LoaderApp:
             if self.game_config.game_exe_path != resolved:
                 self.game_config.game_exe_path = resolved
                 self.game_config.save()
-            self.game_path_lbl.config(text=resolved)
+            self.game_path_lbl.config(text="")
         else:
             self.game_exe_path = None
-            self.game_path_lbl.config(
-                text="hyxd.exe not found — use Locate game or install to Program Files (x86)\\hyxd"
-            )
+            self.game_path_lbl.config(text="")
 
     def _format_remaining(self, seconds: int) -> str:
         seconds = max(0, seconds)
@@ -532,7 +525,7 @@ class LoaderApp:
                 self.game_exe_path = running_exe
                 self.game_config.game_exe_path = running_exe
                 self.game_config.save()
-                self.game_path_lbl.config(text=running_exe)
+                self.game_path_lbl.config(text="")
         else:
             in_game = game_session.is_game_running(self.game_exe_path)
 
@@ -547,15 +540,15 @@ class LoaderApp:
             process_cleanup.kill_ko_for_game(self.game_exe_path)
 
         if not self.license_valid:
-            state = "Status: license expired or invalid"
+            state = "License expired or invalid"
         elif not has_path:
-            state = "Status: hyxd.exe not found"
+            state = "Game not found — tap Locate"
         elif in_game:
-            state = "Status: in-game — ready to load hacks"
+            state = "In-game — ready for Load Hacks"
         elif ko_launcher.game_folder_has_ko(self.game_exe_path):
-            state = "Status: KO.exe in game folder — press Start game"
+            state = "KO.exe ready — Start game"
         else:
-            state = "Status: press Start game when ready"
+            state = "Press Start game when ready"
 
         self.game_state_lbl.config(text=state)
         self.btn_load.config(state=tk.NORMAL if can_load else tk.DISABLED)
@@ -628,8 +621,8 @@ class LoaderApp:
         self.game_exe_path = resolved
         self.game_config.game_exe_path = resolved
         self.game_config.save()
-        self.game_path_lbl.config(text=resolved)
-        self.main_msg.config(text="Game path saved. Press Start game when ready.", fg=theme.SUCCESS)
+        self.game_path_lbl.config(text="")
+        self.main_msg.config(text="Game found. Press Start game.", fg=theme.SUCCESS)
         self._refresh_game_state()
 
     def _start_game(self) -> None:

@@ -21,16 +21,19 @@ DANGER = RED
 WARN = "#ffb020"
 
 FONT = "Segoe UI"
-FONT_CAPTION = (FONT, 8)
-FONT_LABEL = (FONT, 9)
-FONT_BODY = (FONT, 10)
-FONT_BODY_BOLD = (FONT, 10, "bold")
-FONT_SUBTITLE = (FONT, 11)
-FONT_TITLE = (FONT, 12, "bold")
-FONT_HERO = (FONT, 18, "bold")
-FONT_COUNTDOWN = ("Consolas", 15, "bold")
-FONT_BUTTON = (FONT, 10, "bold")
-FONT_BUTTON_HERO = (FONT, 11, "bold")
+FONT_CAPTION = (FONT, 7)
+FONT_LABEL = (FONT, 8)
+FONT_BODY = (FONT, 9)
+FONT_BODY_BOLD = (FONT, 9, "bold")
+FONT_SUBTITLE = (FONT, 10, "bold")
+FONT_TITLE = (FONT, 11, "bold")
+FONT_HERO = (FONT, 13, "bold")
+FONT_COUNTDOWN = ("Consolas", 12, "bold")
+FONT_BUTTON = (FONT, 9, "bold")
+FONT_BUTTON_HERO = (FONT, 10, "bold")
+
+PAD_CARD = 8
+PAD_PANEL = (10, 6)
 
 APP_NAME = "Harvcious Hacks"
 TAGLINE = "SYSTEM OVERRIDE"
@@ -62,7 +65,7 @@ def make_shell(parent: tk.Misc, root: tk.Misc | None = None):
 
     if root is not None:
         hdr = tk.Frame(card, bg=CARD)
-        hdr.pack(fill=tk.X, padx=6, pady=(8, 4))
+        hdr.pack(fill=tk.X, padx=4, pady=(4, 2))
         animated_title = AnimatedBrandTitle(hdr, root)
         animated_title.frame.pack(fill=tk.X)
         animated_title.start()
@@ -78,7 +81,7 @@ def make_shell(parent: tk.Misc, root: tk.Misc | None = None):
 
 def brand_header(parent: tk.Misc, subtitle: str = "") -> tk.Frame:
     box = tk.Frame(parent, bg=CARD)
-    box.pack(fill=tk.X, pady=(0, 8))
+    box.pack(fill=tk.X, pady=(0, 4))
 
     if subtitle:
         tk.Label(
@@ -126,7 +129,7 @@ def make_entry(parent: tk.Misc, show: str | None = None) -> tk.Entry:
         highlightbackground=BORDER,
         highlightcolor=ACCENT,
     )
-    entry.pack(fill=tk.X, pady=(2, 10), ipady=6)
+    entry.pack(fill=tk.X, pady=(1, 6), ipady=4)
     return entry
 
 
@@ -137,7 +140,7 @@ def make_message(parent: tk.Misc, bg: str = CARD) -> tk.Label:
         bg=bg,
         fg=DANGER,
         font=FONT_LABEL,
-        wraplength=320,
+        wraplength=300,
         justify=tk.CENTER,
         anchor=tk.CENTER,
     )
@@ -169,11 +172,11 @@ def accent_button(parent: tk.Misc, text: str, command) -> tk.Button:
         font=FONT_BUTTON,
         relief=tk.FLAT,
         cursor="hand2",
-        padx=12,
-        pady=8,
+        padx=8,
+        pady=5,
         borderwidth=0,
     )
-    btn.pack(fill=tk.X, pady=(4, 8))
+    btn.pack(fill=tk.X, pady=(2, 4))
     bind_button_hover(btn, ACCENT, ACCENT_HOVER)
     return btn
 
@@ -190,17 +193,17 @@ def ghost_button(parent: tk.Misc, text: str, command) -> tk.Button:
         font=FONT_LABEL,
         relief=tk.FLAT,
         cursor="hand2",
-        padx=8,
-        pady=5,
+        padx=6,
+        pady=2,
     )
-    btn.pack(pady=(0, 4))
+    btn.pack(pady=(0, 2))
     bind_button_hover(btn, CARD, INPUT_BG)
     return btn
 
 
 def hero_button(parent: tk.Misc, text: str, command) -> tk.Button:
     wrap = tk.Frame(parent, bg=CARD)
-    wrap.pack(fill=tk.X, pady=(8, 6))
+    wrap.pack(fill=tk.X, pady=(4, 3))
     btn = tk.Button(
         wrap,
         text=text,
@@ -211,8 +214,8 @@ def hero_button(parent: tk.Misc, text: str, command) -> tk.Button:
         font=FONT_BUTTON_HERO,
         relief=tk.FLAT,
         cursor="hand2",
-        padx=12,
-        pady=11,
+        padx=8,
+        pady=7,
         borderwidth=0,
     )
     btn.pack(fill=tk.X)
@@ -222,46 +225,90 @@ def hero_button(parent: tk.Misc, text: str, command) -> tk.Button:
 
 def card_panel(parent: tk.Misc, bg: str = INPUT_BG) -> tk.Frame:
     outer = tk.Frame(parent, bg=ACCENT_GLOW, padx=1, pady=1)
-    outer.pack(fill=tk.X, pady=(0, 8))
-    inner = tk.Frame(outer, bg=bg, padx=12, pady=10)
+    outer.pack(fill=tk.X, pady=(0, 5))
+    inner = tk.Frame(outer, bg=bg, padx=PAD_CARD, pady=PAD_CARD)
     inner.pack(fill=tk.X)
     return inner
 
 
-def player_bind_panel(parent: tk.Misc) -> tuple[tk.Frame, tk.Label, tk.Label]:
-    """Card showing account-bound in-game player."""
-    inner = card_panel(parent)
-    section_label(inner, "Bound player").pack(fill=tk.X)
+def player_bind_panel(
+    parent: tk.Misc,
+    on_refresh=None,
+) -> tuple[tk.Frame, tk.Label, tk.Label]:
+    """Compact bound-player block (fits inside dashboard card)."""
+    block = tk.Frame(parent, bg=INPUT_BG)
+    block.pack(fill=tk.X, pady=(6, 0))
+
+    hdr = tk.Frame(block, bg=INPUT_BG)
+    hdr.pack(fill=tk.X)
+    section_label(hdr, "Bound player").pack(side=tk.LEFT)
+    if on_refresh is not None:
+        btn = tk.Button(
+            hdr,
+            text="Refresh",
+            command=on_refresh,
+            bg=INPUT_BG,
+            fg=ACCENT_SOFT,
+            activebackground=INPUT_BG,
+            activeforeground=ACCENT,
+            font=FONT_CAPTION,
+            relief=tk.FLAT,
+            cursor="hand2",
+            padx=4,
+            pady=0,
+            borderwidth=0,
+        )
+        btn.pack(side=tk.RIGHT)
+
     name_lbl = tk.Label(
-        inner,
+        block,
         text="—",
         bg=INPUT_BG,
         fg=TEXT,
         font=FONT_HERO,
         anchor=tk.CENTER,
-        wraplength=300,
+        wraplength=280,
         justify=tk.CENTER,
     )
-    name_lbl.pack(fill=tk.X, pady=(6, 2))
+    name_lbl.pack(fill=tk.X, pady=(2, 0))
     sub_lbl = tk.Label(
-        inner,
+        block,
         text="Not bound yet",
         bg=INPUT_BG,
         fg=MUTED,
-        font=FONT_LABEL,
+        font=FONT_CAPTION,
         anchor=tk.CENTER,
-        wraplength=300,
+        wraplength=280,
         justify=tk.CENTER,
     )
-    sub_lbl.pack(fill=tk.X, pady=(0, 2))
-    return inner, name_lbl, sub_lbl
+    sub_lbl.pack(fill=tk.X, pady=(1, 0))
+    return block, name_lbl, sub_lbl
+
+
+def inline_button(parent: tk.Misc, text: str, command) -> tk.Button:
+    btn = tk.Button(
+        parent,
+        text=text,
+        command=command,
+        bg=ACCENT,
+        fg="#001018",
+        activebackground=ACCENT_HOVER,
+        font=FONT_BUTTON,
+        relief=tk.FLAT,
+        cursor="hand2",
+        padx=8,
+        pady=4,
+        borderwidth=0,
+    )
+    bind_button_hover(btn, ACCENT, ACCENT_HOVER)
+    return btn
 
 
 def bottom_hint(parent: tk.Misc, text: str) -> tk.Label:
     footer = tk.Frame(parent, bg=CARD)
-    footer.pack(side=tk.BOTTOM, fill=tk.X, pady=(8, 4))
-    line = tk.Frame(footer, bg=RED, height=2)
-    line.pack(fill=tk.X, padx=36, pady=(0, 8))
+    footer.pack(side=tk.BOTTOM, fill=tk.X, pady=(4, 2))
+    line = tk.Frame(footer, bg=RED, height=1)
+    line.pack(fill=tk.X, padx=40, pady=(0, 4))
     lbl = tk.Label(
         footer,
         text=text,
@@ -285,8 +332,8 @@ def secondary_button(parent: tk.Misc, text: str, command) -> tk.Button:
         font=FONT_BODY,
         relief=tk.FLAT,
         cursor="hand2",
-        padx=10,
-        pady=7,
+        padx=6,
+        pady=5,
         command=command,
     )
     bind_button_hover(btn, INPUT_BG, BORDER)
