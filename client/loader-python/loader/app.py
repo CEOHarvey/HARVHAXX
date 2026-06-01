@@ -39,8 +39,8 @@ class LoaderApp:
         self._shutting_down = False
 
         root.title(theme.APP_NAME)
-        root.geometry("364x492")
-        root.minsize(364, 492)
+        root.geometry("364x540")
+        root.minsize(364, 540)
         root.resizable(False, False)
         theme.style_root(root)
         self.brand = ui_assets.BrandAssets()
@@ -209,6 +209,10 @@ class LoaderApp:
             font=(theme.FONT, 13, "bold"),
         )
         self.remaining_lbl.pack(anchor=tk.CENTER, pady=(4, 0))
+
+        theme.field_label(inner, "Extend license (stack more time)").pack(fill=tk.X, pady=(10, 0))
+        self.extend_key = theme.make_entry(inner)
+        self.btn_extend = theme.ghost_button(inner, "Extend license", self._extend_license)
 
         self.game_path_lbl = tk.Label(
             body,
@@ -400,8 +404,34 @@ class LoaderApp:
         self._update_status_ui(status)
         self._start_license_timer()
         self._start_game_poll()
-        if self.settings.auto_start_game_after_login:
-            self.root.after(600, self._try_auto_start_game)
+
+    def _extend_license(self) -> None:
+        key = self.extend_key.get().strip().upper()
+        if not key:
+            self.main_msg.config(text="Enter a license key to extend.", fg=theme.DANGER)
+            return
+        self.main_msg.config(text="")
+
+        def work():
+            return self.api.extend_license(key, self.hwid_hash)
+
+        def ok(status: LicenseStatus):
+            if not status.valid:
+                self.main_msg.config(
+                    text=status.message or "Could not extend license.",
+                    fg=theme.DANGER,
+                )
+                return
+            self.extend_key.delete(0, tk.END)
+            self._update_status_ui(status)
+            self.main_msg.config(text="License extended — time added to your subscription.", fg=theme.SUCCESS)
+
+        self._run_async(
+            work,
+            ok,
+            lambda e: self.main_msg.config(text=self._friendly_auth_error(e), fg=theme.DANGER),
+            busy_message="Extending license...",
+        )
 
     def _apply_default_game_path(self) -> None:
         saved = self.game_config.game_exe_path or None
@@ -475,9 +505,9 @@ class LoaderApp:
         elif in_game:
             state = "Status: in-game — ready to load hacks"
         elif ko_launcher.game_folder_has_ko(self.game_exe_path):
-            state = "Status: KO.exe in game folder — will auto-start"
+            state = "Status: KO.exe in game folder — press Start game"
         else:
-            state = "Status: press Start game or wait for auto-start"
+            state = "Status: press Start game when ready"
 
         self.game_state_lbl.config(text=state)
         self.btn_load.config(state=tk.NORMAL if can_load else tk.DISABLED)
@@ -551,7 +581,8 @@ class LoaderApp:
         self.game_config.game_exe_path = resolved
         self.game_config.save()
         self.game_path_lbl.config(text=resolved)
-        self._launch_ko(auto=True)
+        self.main_msg.config(text="Game path saved. Press Start game when ready.", fg=theme.SUCCESS)
+        self._refresh_game_state()
 
     def _start_game(self) -> None:
         self._launch_ko(auto=False)

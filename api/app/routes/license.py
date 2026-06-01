@@ -116,6 +116,67 @@ def activate(body: ActivateRequest, user: User = Depends(get_current_user), db: 
     return _response_from_activation(db, act)
 
 
+@router.post("/extend", response_model=LicenseStatusResponse)
+def extend_license(body: ActivateRequest, user: User = Depends(get_current_user), db: Session = Depends(get_db)):
+    """Stack an unused license key onto the user's current active time."""
+    key = body.license_key.strip().upper()
+    lic = db.query(License).filter(License.license_key == key).first()
+    if not lic:
+        raise HTTPException(status_code=status.HTTP_404_NOT_FOUND, detail="Invalid license key")
+    if lic.status == LicenseStatus.revoked:
+        raise HTTPException(status_code=status.HTTP_400_BAD_REQUEST, detail="License revoked")
+    if lic.status != LicenseStatus.unused:
+        raise HTTPException(
+            status_code=status.HTTP_400_BAD_REQUEST,
+            detail="License already used — only unused keys can extend your subscription",
+        )
+
+    act = _active_activation(db, user)
+    if not act:
+        raise HTTPException(
+            status_code=status.HTTP_400_BAD_REQUEST,
+            detail="No active license on this account. Activate a license first.",
+        )
+
+    current = _response_from_activation(db, act)
+    if not current.valid:
+        raise HTTPException(
+            status_code=status.HTTP_400_BAD_REQUEST,
+            detail="Current license is expired or invalid. Activate a new license instead of extending.",
+        )
+
+    if is_hwid_pending_reset(act.hwid_hash):
+        act.hwid_hash = body.hwid_hash
+    elif not hwid_allowed_for_activation(db, user.id, act.hwid_hash, body.hwid_hash):
+        raise HTTPException(
+            status_code=status.HTTP_400_BAD_REQUEST,
+            detail="HWID not authorized. Request bind from admin on this PC.",
+        )
+    elif act.hwid_hash != body.hwid_hash:
+        act.hwid_hash = body.hwid_hash
+
+    dur = getattr(lic, "duration_seconds", None) or (lic.duration_days * 86400)
+    now = _utcnow()
+    exp = act.expires_at.replace(tzinfo=timezone.utc) if act.expires_at.tzinfo is None else act.expires_at
+    base = max(now, exp)
+    act.expires_at = base + timedelta(seconds=dur)
+
+    stacked_note = f"stacked:{user.username}"
+    lic.note = f"{lic.note or ''} {stacked_note}".strip()[:255]
+    lic.status = LicenseStatus.expired
+
+    touch_session(db, user, body.hwid_hash)
+    db.commit()
+    db.refresh(act)
+    act = (
+        db.query(Activation)
+        .options(joinedload(Activation.license), joinedload(Activation.user))
+        .filter(Activation.id == act.id)
+        .first()
+    )
+    return _response_from_activation(db, act)
+
+
 @router.post("/validate", response_model=LicenseStatusResponse)
 def validate(body: ValidateRequest, user: User = Depends(get_current_user), db: Session = Depends(get_db)):
     act = _active_activation(db, user)

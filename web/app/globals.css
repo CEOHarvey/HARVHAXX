@@ -577,6 +577,65 @@ button.theme-toggle:hover {
   color: var(--accent);
 }
 
+.print-duration-picks {
+  display: flex;
+  flex-wrap: wrap;
+  gap: 0.5rem;
+  margin-bottom: 1rem;
+}
+
+.print-duration-chip {
+  display: inline-flex;
+  align-items: center;
+  gap: 0.4rem;
+  padding: 0.35rem 0.65rem;
+  border-radius: 999px;
+  border: 1px solid var(--border);
+  background: var(--surface2);
+  font-size: 0.82rem;
+  cursor: pointer;
+}
+
+.print-duration-chip input {
+  accent-color: var(--accent);
+}
+
+.print-actions {
+  display: flex;
+  flex-wrap: wrap;
+  gap: 0.5rem;
+  margin-bottom: 1rem;
+}
+
+.print-preview-wrap {
+  border: 1px solid var(--border);
+  border-radius: 10px;
+  background: var(--surface2);
+  overflow: hidden;
+}
+
+.print-preview-label {
+  padding: 0.4rem 0.75rem;
+  font-size: 0.75rem;
+  text-transform: uppercase;
+  letter-spacing: 0.04em;
+  color: var(--muted);
+  border-bottom: 1px solid var(--border);
+}
+
+.print-preview {
+  margin: 0;
+  padding: 1rem;
+  font-family: "JetBrains Mono", Consolas, monospace;
+  font-size: 0.78rem;
+  line-height: 1.5;
+  white-space: pre-wrap;
+  word-break: break-word;
+  max-height: 420px;
+  overflow: auto;
+  color: var(--text);
+}
+
 p.success {
   color: var(--success);
   font-size: 0.88rem;

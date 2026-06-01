@@ -6,7 +6,7 @@ import { ThemeToggle } from "./components/ThemeToggle";
 const API = process.env.NEXT_PUBLIC_API_URL ?? "http://127.0.0.1:8000";
 
 type DurUnit = "sec" | "min" | "hour" | "day";
-type TabId = "generate" | "active" | "unused" | "expired" | "sessions" | "accounts";
+type TabId = "generate" | "active" | "unused" | "print" | "expired" | "sessions" | "accounts";
 
 type LicenseRow = {
   id: number;
@@ -78,6 +78,33 @@ const PRESETS: { label: string; amount: number; unit: DurUnit }[] = [
 ];
 
 const CATEGORIES = ["standard", "premium", "trial", "vip", "lifetime"];
+const PRINT_COLS_PER_ROW = 3;
+
+function printDurationLabel(seconds: number): string {
+  if (seconds <= 0) return "0DAY";
+  if (seconds % 86400 === 0) return `${seconds / 86400}DAY`;
+  if (seconds % 3600 === 0) return `${seconds / 3600}HOUR`;
+  if (seconds % 60 === 0) return `${seconds / 60}MIN`;
+  return formatDurationLabel(seconds).replace(/\s/g, "").toUpperCase();
+}
+
+function formatLicensePrintBlock(label: string, keys: string[], colsPerRow: number): string {
+  const lines: string[] = [];
+  for (let i = 0; i < keys.length; i += colsPerRow) {
+    const chunk = keys.slice(i, i + colsPerRow);
+    lines.push(chunk.map((k) => `${label} - ${k}`).join("  "));
+  }
+  return lines.join("\n");
+}
+
+function buildLicensePrintDocument(
+  groups: { seconds: number; keys: string[] }[],
+  colsPerRow: number
+): string {
+  return groups
+    .map((g) => formatLicensePrintBlock(printDurationLabel(g.seconds), g.keys, colsPerRow))
+    .join("\n\n");
+}
 
 function toSeconds(amount: number, unit: DurUnit): number {
   return Math.max(1, Math.floor(amount)) * UNIT_MULT[unit];
@@ -129,6 +156,8 @@ export default function AdminPage() {
   const [generated, setGenerated] = useState<string[]>([]);
   const [note, setNote] = useState("");
   const [tick, setTick] = useState(0);
+  const [selectedPrintDurations, setSelectedPrintDurations] = useState<number[]>([]);
+  const [includeGeneratedBatch, setIncludeGeneratedBatch] = useState(true);
 
   const durationSeconds = useMemo(() => toSeconds(durAmount, durUnit), [durAmount, durUnit]);
 
@@ -306,6 +335,89 @@ export default function AdminPage() {
   const unused = licenses.filter((l) => l.status === "unused");
   const onlineSessions = sessions.filter((s) => s.is_online);
 
+  const unusedByDuration = useMemo(() => {
+    const map = new Map<number, string[]>();
+    for (const l of unused) {
+      const sec = l.duration_seconds;
+      if (!map.has(sec)) map.set(sec, []);
+      map.get(sec)!.push(l.license_key);
+    }
+    return Array.from(map.entries())
+      .sort(([a], [b]) => a - b)
+      .map(([seconds, keys]) => ({
+        seconds,
+        keys,
+        label: printDurationLabel(seconds),
+        human: formatDurationLabel(seconds),
+      }));
+  }, [unused]);
+
+  const durationKeysSig = unusedByDuration.map((g) => g.seconds).join(",");
+
+  useEffect(() => {
+    const available = unusedByDuration.map((g) => g.seconds);
+    setSelectedPrintDurations((prev) => {
+      const kept = prev.filter((s) => available.includes(s));
+      const added = available.filter((s) => !kept.includes(s));
+      return [...kept, ...added];
+    });
+  }, [durationKeysSig, unusedByDuration]);
+
+  const printDocument = useMemo(() => {
+    const groups: { seconds: number; keys: string[] }[] = [];
+    for (const g of unusedByDuration) {
+      if (!selectedPrintDurations.includes(g.seconds)) continue;
+      groups.push({ seconds: g.seconds, keys: [...g.keys] });
+    }
+    if (includeGeneratedBatch && generated.length > 0 && selectedPrintDurations.includes(durationSeconds)) {
+      const idx = groups.findIndex((g) => g.seconds === durationSeconds);
+      if (idx >= 0) {
+        groups[idx] = {
+          seconds: durationSeconds,
+          keys: [...new Set([...groups[idx].keys, ...generated])],
+        };
+      } else {
+        groups.push({ seconds: durationSeconds, keys: [...generated] });
+        groups.sort((a, b) => a.seconds - b.seconds);
+      }
+    }
+    if (!groups.length) return "";
+    return buildLicensePrintDocument(groups, PRINT_COLS_PER_ROW);
+  }, [
+    unusedByDuration,
+    selectedPrintDurations,
+    includeGeneratedBatch,
+    generated,
+    durationSeconds,
+  ]);
+
+  function togglePrintDuration(seconds: number) {
+    setSelectedPrintDurations((prev) =>
+      prev.includes(seconds) ? prev.filter((s) => s !== seconds) : [...prev, seconds].sort((a, b) => a - b)
+    );
+  }
+
+  function openPrintWindow() {
+    if (!printDocument) return;
+    const w = window.open("", "_blank", "noopener,noreferrer,width=900,height=700");
+    if (!w) {
+      setError("Pop-up blocked — allow pop-ups to print, or use Copy print text.");
+      return;
+    }
+    const escaped = printDocument
+      .replace(/&/g, "&amp;")
+      .replace(/</g, "&lt;")
+      .replace(/>/g, "&gt;");
+    w.document.write(`<!DOCTYPE html><html><head><title>License keys</title>
+      <style>
+        body { font-family: Consolas, "Courier New", monospace; font-size: 11px; line-height: 1.45; padding: 24px; margin: 0; }
+        pre { white-space: pre-wrap; word-break: break-all; margin: 0; }
+      </style></head><body><pre>${escaped}</pre></body></html>`);
+    w.document.close();
+    w.focus();
+    w.print();
+  }
+
   const activeByCategory = useMemo(() => {
     const map = new Map<string, LicenseRow[]>();
     for (const l of active) {
@@ -320,6 +432,7 @@ export default function AdminPage() {
     { id: "generate", label: "Generate" },
     { id: "active", label: "Active", count: active.length },
     { id: "unused", label: "Unused", count: unused.length },
+    { id: "print", label: "Print keys" },
     { id: "expired", label: "Expired logs", count: expiryLogs.length },
     { id: "accounts", label: "Account logs", count: registrationLogs.length },
     { id: "sessions", label: "Sessions", count: onlineSessions.length },
@@ -601,6 +714,64 @@ export default function AdminPage() {
             Keys not activated yet. Click a key to copy.
           </p>
           {licenseTable(unused, false)}
+        </section>
+      )}
+
+      {tab === "print" && (
+        <section className="card">
+          <h2 className="section-title">Print license keys</h2>
+          <p className="subtitle" style={{ marginTop: 0 }}>
+            Format: <code>1DAY - HARVEY-XXXXX-XXXXX</code> — 3 keys per row. Each duration is a separate
+            paragraph (1DAY block, then 2DAY block, etc.).
+          </p>
+          {unusedByDuration.length === 0 && generated.length === 0 ? (
+            <p className="muted">No unused keys to print. Generate keys first.</p>
+          ) : (
+            <>
+              <div className="print-duration-picks">
+                <span className="muted" style={{ display: "block", marginBottom: "0.5rem" }}>
+                  Select durations to include (each prints in its own section):
+                </span>
+                {unusedByDuration.map((g) => (
+                  <label key={g.seconds} className="print-duration-chip">
+                    <input
+                      type="checkbox"
+                      checked={selectedPrintDurations.includes(g.seconds)}
+                      onChange={() => togglePrintDuration(g.seconds)}
+                    />
+                    {g.label} ({g.keys.length} unused · {g.human})
+                  </label>
+                ))}
+                {generated.length > 0 && (
+                  <label className="print-duration-chip">
+                    <input
+                      type="checkbox"
+                      checked={includeGeneratedBatch}
+                      onChange={(e) => setIncludeGeneratedBatch(e.target.checked)}
+                    />
+                    Last generated batch ({generated.length} keys · {printDurationLabel(durationSeconds)})
+                  </label>
+                )}
+              </div>
+              <div className="print-actions">
+                <button type="button" onClick={openPrintWindow} disabled={!printDocument}>
+                  Print
+                </button>
+                <button
+                  type="button"
+                  className="secondary"
+                  disabled={!printDocument}
+                  onClick={() => copyText(printDocument)}
+                >
+                  Copy print text
+                </button>
+              </div>
+              <div className="print-preview-wrap">
+                <div className="print-preview-label">Preview</div>
+                <pre className="print-preview">{printDocument || "Select at least one duration."}</pre>
+              </div>
+            </>
+          )}
         </section>
       )}
 

@@ -100,6 +100,14 @@ class ApiClient:
             )
         )
 
+    def extend_license(self, license_key: str, hwid_hash: str) -> LicenseStatus:
+        return self._license_from(
+            self._post(
+                "license/extend",
+                {"license_key": license_key, "hwid_hash": hwid_hash},
+            )
+        )
+
     def validate(self, hwid_hash: str) -> LicenseStatus:
         return self._license_from(
             self._post("license/validate", {"hwid_hash": hwid_hash})

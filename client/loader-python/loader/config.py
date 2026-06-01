@@ -17,7 +17,7 @@ class Settings:
     show_inject_console: bool = True
     console_auto_close_ms: int = 2500
     default_game_exe_path: str = r"C:\Program Files (x86)\hyxd\Engine\Binaries\Win64\hyxd.exe"
-    auto_start_game_after_login: bool = True
+    auto_start_game_after_login: bool = False
     exit_countdown_seconds: int = 10
 
     @classmethod
@@ -42,6 +42,6 @@ class Settings:
                 int(data.get("ConsoleAutoCloseMs", 2500))
             ),
             default_game_exe_path=data.get("DefaultGameExePath", cls.default_game_exe_path),
-            auto_start_game_after_login=data.get("AutoStartGameAfterLogin", True),
+            auto_start_game_after_login=data.get("AutoStartGameAfterLogin", False),
             exit_countdown_seconds=int(data.get("ExitCountdownSeconds", 10)),
         )
