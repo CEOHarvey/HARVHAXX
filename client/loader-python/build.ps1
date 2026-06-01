@@ -130,7 +130,7 @@ if (Test-Path $out) {
     $mb = [math]::Round((Get-Item $out).Length / 1MB, 1)
     $elapsedSec = [math]::Round($sw.Elapsed.TotalSeconds)
     Write-Host ""
-    Write-Host "SUCCESS (${elapsedSec}s):" -ForegroundColor Green
+    Write-Host ('SUCCESS ({0}s):' -f $elapsedSec) -ForegroundColor Green
     Write-Host $out
     Write-Host "Size: $mb MB (no .NET 8 needed)"
     Write-Host ""
