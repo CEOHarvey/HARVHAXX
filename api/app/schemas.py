@@ -55,6 +55,11 @@ class PlayerBindResponse(BaseModel):
     is_new_bind: bool = False
     message: str = ""
 
+
+class PlayerAccountResponse(BaseModel):
+    bound_player_name: str | None = None
+    bound_player_at: datetime | None = None
+
 class GenerateLicensesRequest(BaseModel):
     duration_seconds: int = Field(ge=1, le=31536000, description="Min 1 second, max 365 days")
     quantity: int = Field(ge=1, le=100)

@@ -5,7 +5,7 @@ from tkinter import messagebox, ttk
 
 import requests
 
-from loader.api_client import ApiClient, LicenseStatus, TokenResult
+from loader.api_client import ApiClient, LicenseStatus, PlayerAccount, TokenResult
 from loader import game_path, game_session, hwid, inject, inject_console, ko_launcher, payload, process_cleanup
 from loader import player_bind
 from loader.config import Settings
@@ -37,10 +37,11 @@ class LoaderApp:
         self._login_progress: ttk.Progressbar | None = None
         self._hide_remaining = 0
         self._shutting_down = False
+        self.bound_player_name: str | None = None
 
         root.title(theme.APP_NAME)
-        root.geometry("364x540")
-        root.minsize(364, 540)
+        root.geometry("380x620")
+        root.minsize(380, 620)
         root.resizable(False, False)
         theme.style_root(root)
         self.brand = ui_assets.BrandAssets()
@@ -106,7 +107,7 @@ class LoaderApp:
 
     def _build_login(self) -> tk.Frame:
         f = tk.Frame(self.card, bg=theme.CARD)
-        theme.brand_header(f, "Sign in to your account")
+        theme.brand_header(f, "Sign in")
 
         theme.field_label(f, "Username").pack(fill=tk.X)
         self.login_user = theme.make_entry(f)
@@ -120,7 +121,7 @@ class LoaderApp:
 
     def _build_register(self) -> tk.Frame:
         f = tk.Frame(self.card, bg=theme.CARD)
-        theme.brand_header(f, "Create your account")
+        theme.brand_header(f, "Create account")
         theme.field_label(f, "Username").pack(fill=tk.X)
         self.reg_user = theme.make_entry(f)
         theme.field_label(f, "Email").pack(fill=tk.X)
@@ -134,7 +135,7 @@ class LoaderApp:
 
     def _build_license(self) -> tk.Frame:
         f = tk.Frame(self.card, bg=theme.CARD)
-        theme.brand_header(f, "Activate your license")
+        theme.brand_header(f, "Activate license")
         theme.field_label(f, "License key").pack(fill=tk.X)
         self.license_key = theme.make_entry(f)
         self.license_err = theme.make_message(f)
@@ -149,7 +150,7 @@ class LoaderApp:
             text="License expired",
             bg=theme.CARD,
             fg=theme.DANGER,
-            font=(theme.FONT, 13, "bold"),
+            font=theme.FONT_TITLE,
         )
         self.expired_title.pack(anchor=tk.CENTER)
         self.expired_detail = tk.Label(
@@ -157,8 +158,8 @@ class LoaderApp:
             text="",
             bg=theme.CARD,
             fg=theme.TEXT,
-            font=(theme.FONT, 9),
-            wraplength=300,
+            font=theme.FONT_LABEL,
+            wraplength=320,
             justify=tk.CENTER,
         )
         self.expired_detail.pack(anchor=tk.CENTER, pady=10)
@@ -183,49 +184,66 @@ class LoaderApp:
             body,
             text="Welcome",
             bg=theme.CARD,
-            fg=theme.ACCENT,
-            font=(theme.FONT, 11, "bold"),
+            fg=theme.TEXT,
+            font=theme.FONT_SUBTITLE,
         )
-        self.welcome_lbl.pack(anchor=tk.CENTER, pady=(0, 8))
+        self.welcome_lbl.pack(anchor=tk.CENTER, pady=(0, 10))
 
-        inner = theme.card_panel(body)
+        lic_inner = theme.card_panel(body)
+        theme.section_label(lic_inner, "License").pack(fill=tk.X)
         self.status_lbl = tk.Label(
-            inner,
+            lic_inner,
             text="ACTIVE",
             bg=theme.INPUT_BG,
             fg=theme.SUCCESS,
-            font=(theme.FONT, 10, "bold"),
+            font=theme.FONT_BODY_BOLD,
         )
-        self.status_lbl.pack(anchor=tk.CENTER)
+        self.status_lbl.pack(anchor=tk.CENTER, pady=(4, 0))
         self.expires_lbl = tk.Label(
-            inner, text="", bg=theme.INPUT_BG, fg=theme.MUTED, font=(theme.FONT, 9)
+            lic_inner, text="", bg=theme.INPUT_BG, fg=theme.MUTED, font=theme.FONT_LABEL
         )
         self.expires_lbl.pack(anchor=tk.CENTER, pady=(4, 0))
         self.remaining_lbl = tk.Label(
-            inner,
+            lic_inner,
             text="",
             bg=theme.INPUT_BG,
             fg=theme.ACCENT,
-            font=(theme.FONT, 13, "bold"),
+            font=theme.FONT_COUNTDOWN,
         )
-        self.remaining_lbl.pack(anchor=tk.CENTER, pady=(4, 0))
+        self.remaining_lbl.pack(anchor=tk.CENTER, pady=(6, 0))
 
-        theme.field_label(inner, "Extend license (stack more time)").pack(fill=tk.X, pady=(10, 0))
-        self.extend_key = theme.make_entry(inner)
-        self.btn_extend = theme.ghost_button(inner, "Extend license", self._extend_license)
+        bind_wrap = tk.Frame(body, bg=theme.CARD)
+        bind_wrap.pack(fill=tk.X)
+        _, self.bound_player_lbl, self.bound_player_sub = theme.player_bind_panel(bind_wrap)
+        refresh_row = tk.Frame(bind_wrap, bg=theme.CARD)
+        refresh_row.pack(fill=tk.X)
+        theme.ghost_button(refresh_row, "Refresh bound player", self._refresh_bound_player)
+
+        extend_inner = theme.card_panel(body)
+        theme.section_label(extend_inner, "Extend license").pack(fill=tk.X)
+        tk.Label(
+            extend_inner,
+            text="Add another key to stack time",
+            bg=theme.INPUT_BG,
+            fg=theme.MUTED,
+            font=theme.FONT_LABEL,
+            anchor=tk.W,
+        ).pack(fill=tk.X, pady=(4, 0))
+        self.extend_key = theme.make_entry(extend_inner)
+        self.btn_extend = theme.accent_button(extend_inner, "Extend license", self._extend_license)
 
         self.game_path_lbl = tk.Label(
             body,
             text="",
             bg=theme.CARD,
             fg=theme.MUTED,
-            font=(theme.FONT, 7),
-            wraplength=300,
+            font=theme.FONT_CAPTION,
+            wraplength=320,
             justify=tk.CENTER,
         )
-        self.game_path_lbl.pack(anchor=tk.CENTER, pady=(10, 4))
+        self.game_path_lbl.pack(anchor=tk.CENTER, pady=(8, 4))
         self.game_state_lbl = tk.Label(
-            body, text="", bg=theme.CARD, fg=theme.TEXT, font=(theme.FONT, 9)
+            body, text="", bg=theme.CARD, fg=theme.TEXT, font=theme.FONT_LABEL
         )
         self.game_state_lbl.pack(anchor=tk.CENTER)
         self.main_msg = theme.make_message(body)
@@ -237,10 +255,10 @@ class LoaderApp:
         self.btn_start = theme.secondary_button(btn_row, "Start game", self._start_game)
         self.btn_start.configure(
             bg=theme.ACCENT,
-            fg="#ffffff",
+            fg="#001018",
             activebackground=theme.ACCENT_HOVER,
-            activeforeground="#ffffff",
-            font=(theme.FONT, 10, "bold"),
+            activeforeground="#001018",
+            font=theme.FONT_BUTTON,
         )
         theme.bind_button_hover(self.btn_start, theme.ACCENT, theme.ACCENT_HOVER)
         self.btn_start.pack(side=tk.LEFT, expand=True, fill=tk.X)
@@ -404,6 +422,36 @@ class LoaderApp:
         self._update_status_ui(status)
         self._start_license_timer()
         self._start_game_poll()
+        self._refresh_bound_player()
+
+    def _update_bound_player_labels(self, account: PlayerAccount) -> None:
+        if account.bound_player_name:
+            self.bound_player_lbl.config(text=account.bound_player_name, fg=theme.SUCCESS)
+            if account.bound_player_at:
+                when = account.bound_player_at.astimezone().strftime("%b %d, %Y · %I:%M %p")
+                sub = f"Bound {when}"
+            else:
+                sub = "Locked to this in-game character"
+            self.bound_player_sub.config(text=sub, fg=theme.MUTED)
+        else:
+            self.bound_player_lbl.config(text="Not bound", fg=theme.WARN)
+            self.bound_player_sub.config(
+                text="Enter the game, then use Load Hacks to bind your player name",
+                fg=theme.MUTED,
+            )
+
+    def _refresh_bound_player(self) -> None:
+        if not self.token:
+            return
+
+        def work():
+            return self.api.get_player_account()
+
+        def ok(account: PlayerAccount):
+            self.bound_player_name = account.bound_player_name
+            self._update_bound_player_labels(account)
+
+        self._run_async(work, ok)
 
     def _extend_license(self) -> None:
         key = self.extend_key.get().strip().upper()
@@ -692,6 +740,7 @@ class LoaderApp:
                     self._refresh_game_state()
                     return
                 if kind == "inject_ok":
+                    self.root.after(0, self._refresh_bound_player)
                     self.root.after(0, self._finish_inject_success)
                     return
                 self.btn_load.config(state=tk.NORMAL)

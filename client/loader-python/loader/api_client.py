@@ -31,6 +31,12 @@ class PlayerBindResult:
     is_new_bind: bool = False
 
 
+@dataclass
+class PlayerAccount:
+    bound_player_name: str | None
+    bound_player_at: Optional[datetime]
+
+
 class ApiClient:
     # (connect seconds, read seconds) — faster fail if API is down
     _TIMEOUT = (6, 28)
@@ -113,6 +119,23 @@ class ApiClient:
             self._post("license/validate", {"hwid_hash": hwid_hash})
         )
 
+    def get_player_account(self) -> PlayerAccount:
+        data = self._get("player/account")
+        bound_at = data.get("bound_player_at")
+        bound_dt = None
+        if bound_at:
+            text = str(bound_at).replace("Z", "+00:00")
+            try:
+                bound_dt = datetime.fromisoformat(text)
+            except ValueError:
+                bound_dt = None
+        name = data.get("bound_player_name")
+        clean = str(name).strip() if name else None
+        return PlayerAccount(
+            bound_player_name=clean or None,
+            bound_player_at=bound_dt,
+        )
+
     def bind_player(self, player_name: str) -> PlayerBindResult:
         data = self._post("player/bind", {"player_name": player_name})
         return PlayerBindResult(
@@ -122,6 +145,18 @@ class ApiClient:
             message=str(data.get("message", "")),
             is_new_bind=bool(data.get("is_new_bind", False)),
         )
+
+    def _get(self, path: str) -> dict[str, Any]:
+        try:
+            res = self._session.get(self._base + path, timeout=self._TIMEOUT)
+        except requests.RequestException as ex:
+            raise requests.HTTPError(f"Cannot reach API ({self._base}): {ex}") from ex
+        if not res.ok:
+            self._raise_api_error(res)
+        try:
+            return res.json()
+        except ValueError as ex:
+            raise requests.HTTPError(f"{res.status_code}: Invalid JSON response") from ex
 
     def _post(self, path: str, body: dict[str, Any]) -> dict[str, Any]:
         try:

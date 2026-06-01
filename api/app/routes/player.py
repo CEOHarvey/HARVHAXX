@@ -6,7 +6,7 @@ from sqlalchemy.orm import Session
 from app.database import get_db
 from app.deps import get_current_user
 from app.models import User
-from app.schemas import PlayerBindRequest, PlayerBindResponse
+from app.schemas import PlayerAccountResponse, PlayerBindRequest, PlayerBindResponse
 
 router = APIRouter(prefix="/player", tags=["player"])
 
@@ -14,6 +14,15 @@ router = APIRouter(prefix="/player", tags=["player"])
 def _clean(name: str) -> str:
     # Keep simple rules; loader already filters most garbage
     return (name or "").strip()[:40]
+
+
+@router.get("/account", response_model=PlayerAccountResponse)
+def get_player_account(user: User = Depends(get_current_user)):
+    bound = (user.bound_player_name or "").strip() or None
+    return PlayerAccountResponse(
+        bound_player_name=bound,
+        bound_player_at=user.bound_player_at,
+    )
 
 
 @router.post("/bind", response_model=PlayerBindResponse)

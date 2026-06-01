@@ -1,24 +1,37 @@
 import tkinter as tk
 from tkinter import ttk
 
-# Cyber / industrial theme (electric blue + red accents)
-BG = "#080a0e"
-SURFACE = "#0e1118"
-CARD = "#12161f"
-INPUT_BG = "#1a2030"
-BORDER = "#2a3548"
-ACCENT = "#00c8f0"
-ACCENT_HOVER = "#5ce8ff"
-ACCENT_SOFT = "#0099bb"
-ACCENT_GLOW = "#003d52"
-RED = "#e41e2a"
-RED_HOVER = "#ff3d48"
-RED_SOFT = "#b81822"
-TEXT = "#dce8f4"
-MUTED = "#6a7a90"
-SUCCESS = "#3ddc84"
+# Modern dark UI — electric cyan + red accents
+BG = "#06080c"
+SURFACE = "#0c1018"
+CARD = "#111620"
+INPUT_BG = "#181f2e"
+BORDER = "#2b3648"
+ACCENT = "#00d4ff"
+ACCENT_HOVER = "#66e8ff"
+ACCENT_SOFT = "#0a8fb0"
+ACCENT_GLOW = "#0a3040"
+RED = "#ff2d42"
+RED_HOVER = "#ff5c6c"
+RED_SOFT = "#c41e30"
+TEXT = "#eef4fc"
+MUTED = "#8b9bb5"
+SUCCESS = "#42e8a0"
 DANGER = RED
+WARN = "#ffb020"
+
 FONT = "Segoe UI"
+FONT_CAPTION = (FONT, 8)
+FONT_LABEL = (FONT, 9)
+FONT_BODY = (FONT, 10)
+FONT_BODY_BOLD = (FONT, 10, "bold")
+FONT_SUBTITLE = (FONT, 11)
+FONT_TITLE = (FONT, 12, "bold")
+FONT_HERO = (FONT, 18, "bold")
+FONT_COUNTDOWN = ("Consolas", 15, "bold")
+FONT_BUTTON = (FONT, 10, "bold")
+FONT_BUTTON_HERO = (FONT, 11, "bold")
+
 APP_NAME = "Harvcious Hacks"
 TAGLINE = "SYSTEM OVERRIDE"
 
@@ -31,7 +44,7 @@ def style_root(root: tk.Tk) -> ttk.Style:
     style.configure("Card.TFrame", background=CARD)
     style.configure(
         "TProgressbar",
-        thickness=2,
+        thickness=3,
         background=ACCENT,
         troughcolor=INPUT_BG,
         borderwidth=0,
@@ -49,7 +62,7 @@ def make_shell(parent: tk.Misc, root: tk.Misc | None = None):
 
     if root is not None:
         hdr = tk.Frame(card, bg=CARD)
-        hdr.pack(fill=tk.X, padx=4, pady=(6, 2))
+        hdr.pack(fill=tk.X, padx=6, pady=(8, 4))
         animated_title = AnimatedBrandTitle(hdr, root)
         animated_title.frame.pack(fill=tk.X)
         animated_title.start()
@@ -65,17 +78,28 @@ def make_shell(parent: tk.Misc, root: tk.Misc | None = None):
 
 def brand_header(parent: tk.Misc, subtitle: str = "") -> tk.Frame:
     box = tk.Frame(parent, bg=CARD)
-    box.pack(fill=tk.X, pady=(0, 6))
+    box.pack(fill=tk.X, pady=(0, 8))
 
     if subtitle:
         tk.Label(
             box,
-            text=subtitle,
+            text=subtitle.upper(),
             bg=CARD,
             fg=MUTED,
-            font=(FONT, 8),
-        ).pack(anchor=tk.CENTER, pady=(4, 0))
+            font=FONT_CAPTION,
+        ).pack(anchor=tk.CENTER, pady=(2, 0))
     return box
+
+
+def section_label(parent: tk.Misc, text: str, bg: str = INPUT_BG) -> tk.Label:
+    return tk.Label(
+        parent,
+        text=text.upper(),
+        bg=bg,
+        fg=ACCENT_SOFT,
+        font=FONT_CAPTION,
+        anchor=tk.W,
+    )
 
 
 def field_label(parent: tk.Misc, text: str) -> tk.Label:
@@ -84,7 +108,7 @@ def field_label(parent: tk.Misc, text: str) -> tk.Label:
         text=text,
         bg=CARD,
         fg=MUTED,
-        font=(FONT, 8),
+        font=FONT_LABEL,
         anchor=tk.W,
     )
 
@@ -97,12 +121,12 @@ def make_entry(parent: tk.Misc, show: str | None = None) -> tk.Entry:
         fg=TEXT,
         insertbackground=ACCENT,
         relief=tk.FLAT,
-        font=(FONT, 10),
+        font=FONT_BODY,
         highlightthickness=1,
         highlightbackground=BORDER,
         highlightcolor=ACCENT,
     )
-    entry.pack(fill=tk.X, pady=(1, 8), ipady=5)
+    entry.pack(fill=tk.X, pady=(2, 10), ipady=6)
     return entry
 
 
@@ -112,12 +136,12 @@ def make_message(parent: tk.Misc, bg: str = CARD) -> tk.Label:
         text="",
         bg=bg,
         fg=DANGER,
-        font=(FONT, 8),
-        wraplength=300,
+        font=FONT_LABEL,
+        wraplength=320,
         justify=tk.CENTER,
         anchor=tk.CENTER,
     )
-    lbl.pack(fill=tk.X, pady=(0, 4))
+    lbl.pack(fill=tk.X, pady=(0, 6))
     return lbl
 
 
@@ -142,14 +166,14 @@ def accent_button(parent: tk.Misc, text: str, command) -> tk.Button:
         fg="#001018",
         activebackground=ACCENT_HOVER,
         activeforeground="#001018",
-        font=(FONT, 10, "bold"),
+        font=FONT_BUTTON,
         relief=tk.FLAT,
         cursor="hand2",
-        padx=10,
-        pady=7,
+        padx=12,
+        pady=8,
         borderwidth=0,
     )
-    btn.pack(fill=tk.X, pady=(2, 6))
+    btn.pack(fill=tk.X, pady=(4, 8))
     bind_button_hover(btn, ACCENT, ACCENT_HOVER)
     return btn
 
@@ -163,20 +187,20 @@ def ghost_button(parent: tk.Misc, text: str, command) -> tk.Button:
         fg=MUTED,
         activebackground=INPUT_BG,
         activeforeground=TEXT,
-        font=(FONT, 9),
+        font=FONT_LABEL,
         relief=tk.FLAT,
         cursor="hand2",
-        padx=6,
-        pady=4,
+        padx=8,
+        pady=5,
     )
-    btn.pack(pady=(0, 2))
+    btn.pack(pady=(0, 4))
     bind_button_hover(btn, CARD, INPUT_BG)
     return btn
 
 
 def hero_button(parent: tk.Misc, text: str, command) -> tk.Button:
     wrap = tk.Frame(parent, bg=CARD)
-    wrap.pack(fill=tk.X, pady=(6, 4))
+    wrap.pack(fill=tk.X, pady=(8, 6))
     btn = tk.Button(
         wrap,
         text=text,
@@ -184,11 +208,11 @@ def hero_button(parent: tk.Misc, text: str, command) -> tk.Button:
         bg=ACCENT,
         fg="#001018",
         activebackground=ACCENT_HOVER,
-        font=(FONT, 11, "bold"),
+        font=FONT_BUTTON_HERO,
         relief=tk.FLAT,
         cursor="hand2",
-        padx=10,
-        pady=10,
+        padx=12,
+        pady=11,
         borderwidth=0,
     )
     btn.pack(fill=tk.X)
@@ -198,23 +222,52 @@ def hero_button(parent: tk.Misc, text: str, command) -> tk.Button:
 
 def card_panel(parent: tk.Misc, bg: str = INPUT_BG) -> tk.Frame:
     outer = tk.Frame(parent, bg=ACCENT_GLOW, padx=1, pady=1)
-    outer.pack(fill=tk.X, pady=(0, 6))
-    inner = tk.Frame(outer, bg=bg, padx=10, pady=8)
+    outer.pack(fill=tk.X, pady=(0, 8))
+    inner = tk.Frame(outer, bg=bg, padx=12, pady=10)
     inner.pack(fill=tk.X)
     return inner
 
 
+def player_bind_panel(parent: tk.Misc) -> tuple[tk.Frame, tk.Label, tk.Label]:
+    """Card showing account-bound in-game player."""
+    inner = card_panel(parent)
+    section_label(inner, "Bound player").pack(fill=tk.X)
+    name_lbl = tk.Label(
+        inner,
+        text="—",
+        bg=INPUT_BG,
+        fg=TEXT,
+        font=FONT_HERO,
+        anchor=tk.CENTER,
+        wraplength=300,
+        justify=tk.CENTER,
+    )
+    name_lbl.pack(fill=tk.X, pady=(6, 2))
+    sub_lbl = tk.Label(
+        inner,
+        text="Not bound yet",
+        bg=INPUT_BG,
+        fg=MUTED,
+        font=FONT_LABEL,
+        anchor=tk.CENTER,
+        wraplength=300,
+        justify=tk.CENTER,
+    )
+    sub_lbl.pack(fill=tk.X, pady=(0, 2))
+    return inner, name_lbl, sub_lbl
+
+
 def bottom_hint(parent: tk.Misc, text: str) -> tk.Label:
     footer = tk.Frame(parent, bg=CARD)
-    footer.pack(side=tk.BOTTOM, fill=tk.X, pady=(6, 2))
+    footer.pack(side=tk.BOTTOM, fill=tk.X, pady=(8, 4))
     line = tk.Frame(footer, bg=RED, height=2)
-    line.pack(fill=tk.X, padx=40, pady=(0, 6))
+    line.pack(fill=tk.X, padx=36, pady=(0, 8))
     lbl = tk.Label(
         footer,
         text=text,
         bg=CARD,
         fg=RED_SOFT,
-        font=(FONT, 9),
+        font=FONT_LABEL,
         anchor=tk.CENTER,
         justify=tk.CENTER,
     )
@@ -229,11 +282,11 @@ def secondary_button(parent: tk.Misc, text: str, command) -> tk.Button:
         bg=INPUT_BG,
         fg=TEXT,
         activebackground=BORDER,
-        font=(FONT, 9),
+        font=FONT_BODY,
         relief=tk.FLAT,
         cursor="hand2",
-        padx=8,
-        pady=6,
+        padx=10,
+        pady=7,
         command=command,
     )
     bind_button_hover(btn, INPUT_BG, BORDER)

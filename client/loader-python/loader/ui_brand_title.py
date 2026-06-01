@@ -34,7 +34,7 @@ class AnimatedBrandTitle:
         self._letters: list[tk.Label] = []
         for i, ch in enumerate(self.DISPLAY):
             if ch == " ":
-                tk.Label(row, text=" ", bg=theme.CARD, font=(theme.FONT, 14, "bold")).pack(
+                tk.Label(row, text=" ", bg=theme.CARD, font=theme.FONT_TITLE).pack(
                     side=tk.LEFT
                 )
                 continue
@@ -43,7 +43,7 @@ class AnimatedBrandTitle:
                 text=ch,
                 bg=theme.CARD,
                 fg=theme.ACCENT,
-                font=(theme.FONT, 14, "bold"),
+                font=theme.FONT_TITLE,
             )
             lbl.pack(side=tk.LEFT)
             self._letters.append((i, lbl))
