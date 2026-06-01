@@ -7,9 +7,10 @@ param(
 $ErrorActionPreference = "Stop"
 $sw = [System.Diagnostics.Stopwatch]::StartNew()
 
-function Write-Step($msg) {
+function Write-Step {
+    param([string]$Message)
     $sec = [math]::Round($sw.Elapsed.TotalSeconds, 1)
-    Write-Host "[$sec s] $msg"
+    Write-Host "[$sec s] $Message"
 }
 
 $root = Split-Path -Parent $MyInvocation.MyCommand.Path
@@ -47,7 +48,7 @@ if (-not (Test-Path $venv)) {
     Write-Step "Creating venv (first time only)..."
     python -m venv $venv
     if ($LASTEXITCODE -ne 0) {
-        Write-Host "ERROR: python -m venv failed. Install Python 3.10+ and ensure 'python' is on PATH." -ForegroundColor Red
+        Write-Host "ERROR: python -m venv failed. Install Python 3.10+ and ensure python is on PATH." -ForegroundColor Red
         exit 1
     }
     $venvPython = Join-Path $venv "Scripts\python.exe"
@@ -93,7 +94,7 @@ else {
 $buildDir = Join-Path $root "build"
 $distDir = Join-Path $root "dist"
 if ($Clean) {
-    Write-Step "Clean rebuild — removing build cache..."
+    Write-Step "Clean rebuild - removing build cache..."
     if (Test-Path $buildDir) { Remove-Item -Recurse -Force $buildDir }
     if (Test-Path $distDir) { Remove-Item -Recurse -Force $distDir }
 }
@@ -121,7 +122,13 @@ if ($Clean) {
     $pyiArgs = @("--clean") + $pyiArgs
 }
 
-Write-Step "PyInstaller $(if ($Clean) { '(full clean)' } else { '(incremental - use -Clean if icon stuck)' })..."
+if ($Clean) {
+    Write-Step "PyInstaller full clean build..."
+}
+else {
+    Write-Step "PyInstaller incremental build (use -Clean if icon stuck)..."
+}
+
 & $venvPython -m PyInstaller @pyiArgs
 if ($LASTEXITCODE -ne 0) { exit $LASTEXITCODE }
 
@@ -135,10 +142,10 @@ if (Test-Path $out) {
     Write-Host "Size: $mb MB (no .NET 8 needed)"
     Write-Host ""
     Write-Host "Tips:" -ForegroundColor Yellow
-    Write-Host "  Normal rebuild:  .\build.ps1          (fast)"
-    Write-Host "  Full rebuild:    .\build.ps1 -Clean   (slower, fresh icon/cache)"
+    Write-Host '  Normal rebuild:  .\build.ps1          (fast)'
+    Write-Host '  Full rebuild:    .\build.ps1 -Clean   (slower)'
     if (-not $Clean) {
-        Write-Host "  Old EXE icon?     Run with -Clean once"
+        Write-Host '  Old EXE icon?     Run with -Clean once'
     }
 }
 else {
