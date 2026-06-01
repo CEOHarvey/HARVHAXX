@@ -14,8 +14,11 @@ except ImportError:
 def main() -> None:
     import tkinter as tk
 
+    from loader.admin_check import require_admin_at_startup
     from loader.app import LoaderApp
     from loader.config import Settings
+
+    require_admin_at_startup()
 
     settings = Settings.load()
     root = tk.Tk()
