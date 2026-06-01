@@ -1,5 +1,17 @@
 # One EXE - no .NET required. Embeds harvey.dll + KO.exe inside.
+# Default: fast incremental build. Use -Clean when icon/assets/deps changed.
+param(
+    [switch]$Clean
+)
+
 $ErrorActionPreference = "Stop"
+$sw = [System.Diagnostics.Stopwatch]::StartNew()
+
+function Write-Step($msg) {
+    $sec = [math]::Round($sw.Elapsed.TotalSeconds, 1)
+    Write-Host "[$sec s] $msg"
+}
+
 $root = Split-Path -Parent $MyInvocation.MyCommand.Path
 $payload = Join-Path $root "..\LicenseLoader\Payload"
 $harvey = Join-Path $payload "harvey.dll"
@@ -23,77 +35,110 @@ function Test-VenvHealthy {
 
 $venv = Join-Path $root ".venv"
 $venvPython = Join-Path $venv "Scripts\python.exe"
+$depsMarker = Join-Path $venv ".build_deps_ok"
+$reqFile = Join-Path $root "requirements.txt"
+
 if ((Test-Path $venv) -and -not (Test-VenvHealthy $venvPython)) {
     Write-Host "Removing broken .venv (project was moved or Python path changed)..."
     Remove-Item -Recurse -Force $venv
+    if (Test-Path $depsMarker) { Remove-Item $depsMarker -Force }
 }
 if (-not (Test-Path $venv)) {
-    Write-Host "Creating venv..."
+    Write-Step "Creating venv (first time only)..."
     python -m venv $venv
     if ($LASTEXITCODE -ne 0) {
         Write-Host "ERROR: python -m venv failed. Install Python 3.10+ and ensure 'python' is on PATH." -ForegroundColor Red
         exit 1
     }
     $venvPython = Join-Path $venv "Scripts\python.exe"
+    $Clean = $true
 }
 
-# Use python -m pip / PyInstaller (not Scripts\pip.exe) — survives folder moves.
-& $venvPython -m pip install -q -r (Join-Path $root "requirements.txt")
-if ($LASTEXITCODE -ne 0) { exit $LASTEXITCODE }
-& $venvPython -m pip install -q pyinstaller
-if ($LASTEXITCODE -ne 0) { exit $LASTEXITCODE }
+$needPip = $Clean -or -not (Test-Path $depsMarker)
+if (-not $needPip -and (Test-Path $reqFile)) {
+    if ((Get-Item $reqFile).LastWriteTime -gt (Get-Item $depsMarker).LastWriteTime) {
+        $needPip = $true
+    }
+}
+if ($needPip) {
+    Write-Step "Installing Python packages (first time or requirements changed)..."
+    & $venvPython -m pip install -q -r $reqFile
+    if ($LASTEXITCODE -ne 0) { exit $LASTEXITCODE }
+    Set-Content -Path $depsMarker -Value (Get-Date).ToString("o")
+}
+else {
+    Write-Step "Skipping pip (deps already installed)"
+}
 
 $appsettings = Join-Path $root "appsettings.json"
 $assets = Join-Path $root "loader\assets"
 $entry = Join-Path $root "loader\__main__.py"
 $icon = Join-Path $assets "app.ico"
+$brandFile = Join-Path $assets "brand.png"
 
-if (-not (Test-Path (Join-Path $assets "brand.png"))) {
+if (-not (Test-Path $brandFile)) {
     Write-Host "ERROR: Missing loader\assets\brand.png (square logo for EXE icon)" -ForegroundColor Red
     exit 1
 }
 
-Write-Host "Preparing app.ico from brand.png..."
-& $venvPython (Join-Path $root "scripts\prepare_assets.py")
-$brandFile = Join-Path $assets "brand.png"
-Write-Host "  brand.png updated: $((Get-Item $brandFile).LastWriteTime)"
+$needIcon = $Clean -or -not (Test-Path $icon) -or ((Get-Item $brandFile).LastWriteTime -gt (Get-Item $icon).LastWriteTime)
+if ($needIcon) {
+    Write-Step "Updating app.ico from brand.png..."
+    & $venvPython (Join-Path $root "scripts\prepare_assets.py")
+}
+else {
+    Write-Step "Skipping icon prep (unchanged)"
+}
 
-# Full rebuild so EXE icon + embedded assets match brand.png
-if (Test-Path (Join-Path $root "build")) { Remove-Item -Recurse -Force (Join-Path $root "build") }
-if (Test-Path (Join-Path $root "dist")) { Remove-Item -Recurse -Force (Join-Path $root "dist") }
+$buildDir = Join-Path $root "build"
+$distDir = Join-Path $root "dist"
+if ($Clean) {
+    Write-Step "Clean rebuild — removing build cache..."
+    if (Test-Path $buildDir) { Remove-Item -Recurse -Force $buildDir }
+    if (Test-Path $distDir) { Remove-Item -Recurse -Force $distDir }
+}
 
 $iconArg = @()
 if (Test-Path $icon) {
     $iconArg = @("--icon", $icon)
 }
 
-Write-Host "Building LicenseLoader.exe (PyInstaller onefile)..."
-& $venvPython -m PyInstaller --noconfirm --clean --onefile --windowed `
-    --name LicenseLoader `
-    --paths $root `
-    --hidden-import certifi `
-    --hidden-import PIL `
-    --hidden-import PIL.Image `
-    --hidden-import PIL.ImageTk `
-    --collect-all certifi `
-    --add-data "$appsettings;." `
-    --add-data "$assets;assets" `
-    --add-data "$harvey;Payload" `
-    --add-data "$ko;Payload" `
-    @iconArg `
-    $entry
+$pyiArgs = @(
+    "--noconfirm", "--onefile", "--windowed",
+    "--name", "LicenseLoader",
+    "--paths", $root,
+    "--hidden-import", "certifi",
+    "--hidden-import", "PIL",
+    "--hidden-import", "PIL.Image",
+    "--hidden-import", "PIL.ImageTk",
+    "--add-data", "$appsettings;.",
+    "--add-data", "$assets;assets",
+    "--add-data", "$harvey;Payload",
+    "--add-data", "$ko;Payload"
+) + $iconArg + @($entry)
 
-$out = Join-Path $root "dist\LicenseLoader.exe"
+if ($Clean) {
+    $pyiArgs = @("--clean") + $pyiArgs
+}
+
+Write-Step "PyInstaller $(if ($Clean) { '(full clean)' } else { '(incremental — use -Clean if icon stuck)' })..."
+& $venvPython -m PyInstaller @pyiArgs
+if ($LASTEXITCODE -ne 0) { exit $LASTEXITCODE }
+
+$out = Join-Path $distDir "LicenseLoader.exe"
 if (Test-Path $out) {
     $mb = [math]::Round((Get-Item $out).Length / 1MB, 1)
     Write-Host ""
-    Write-Host "SUCCESS:" -ForegroundColor Green
+    Write-Host "SUCCESS ($([math]::Round($sw.Elapsed.TotalSeconds))s):" -ForegroundColor Green
     Write-Host $out
     Write-Host "Size: $mb MB (no .NET 8 needed)"
     Write-Host ""
-    Write-Host "If Windows still shows the OLD desktop icon, clear the icon cache:" -ForegroundColor Yellow
-    Write-Host "  Close the loader, run build again, then move LicenseLoader.exe to a NEW folder or rename it."
-    Write-Host "  Or: Task Manager -> restart Windows Explorer"
+    Write-Host "Tips:" -ForegroundColor Yellow
+    Write-Host "  Normal rebuild:  .\build.ps1          (fast)"
+    Write-Host "  Full rebuild:    .\build.ps1 -Clean   (slower, fresh icon/cache)"
+    if (-not $Clean) {
+        Write-Host "  Old EXE icon?     Run with -Clean once"
+    }
 }
 else {
     Write-Host "Build failed - dist\LicenseLoader.exe not found." -ForegroundColor Red
