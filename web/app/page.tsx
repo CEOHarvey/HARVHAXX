@@ -397,25 +397,40 @@ export default function AdminPage() {
     );
   }
 
-  function openPrintWindow() {
+  function printLicenses() {
     if (!printDocument) return;
-    const w = window.open("", "_blank", "noopener,noreferrer,width=900,height=700");
-    if (!w) {
-      setError("Pop-up blocked — allow pop-ups to print, or use Copy print text.");
-      return;
-    }
+    setError("");
     const escaped = printDocument
       .replace(/&/g, "&amp;")
       .replace(/</g, "&lt;")
       .replace(/>/g, "&gt;");
-    w.document.write(`<!DOCTYPE html><html><head><title>License keys</title>
+    const iframe = document.createElement("iframe");
+    iframe.setAttribute("title", "License print");
+    iframe.style.cssText = "position:fixed;width:0;height:0;border:0;opacity:0;pointer-events:none";
+    document.body.appendChild(iframe);
+    const frameWin = iframe.contentWindow;
+    const doc = frameWin?.document;
+    if (!frameWin || !doc) {
+      document.body.removeChild(iframe);
+      setError("Print failed in this browser. Use Copy print text instead.");
+      return;
+    }
+    doc.open();
+    doc.write(`<!DOCTYPE html><html><head><title>License keys</title>
       <style>
         body { font-family: Consolas, "Courier New", monospace; font-size: 11px; line-height: 1.45; padding: 24px; margin: 0; }
         pre { white-space: pre-wrap; word-break: break-all; margin: 0; }
       </style></head><body><pre>${escaped}</pre></body></html>`);
-    w.document.close();
-    w.focus();
-    w.print();
+    doc.close();
+    frameWin.focus();
+    frameWin.print();
+    window.setTimeout(() => {
+      try {
+        document.body.removeChild(iframe);
+      } catch {
+        /* already removed */
+      }
+    }, 1500);
   }
 
   const activeByCategory = useMemo(() => {
@@ -754,7 +769,7 @@ export default function AdminPage() {
                 )}
               </div>
               <div className="print-actions">
-                <button type="button" onClick={openPrintWindow} disabled={!printDocument}>
+                <button type="button" onClick={printLicenses} disabled={!printDocument}>
                   Print
                 </button>
                 <button
