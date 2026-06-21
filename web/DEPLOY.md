@@ -9,7 +9,7 @@
 
    | Name | Value |
    |------|--------|
-   | `NEXT_PUBLIC_API_URL` | `https://harvhaxx.onrender.com` (your Render API URL) |
+   | `NEXT_PUBLIC_API_URL` | `https://harvhaxx-1.onrender.com` (your Render API URL) |
 
 5. **Deploy** → copy your site URL, e.g. `https://your-app.vercel.app`
 
