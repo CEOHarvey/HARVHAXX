@@ -7,7 +7,7 @@ from loader.paths import app_dir, resource_path
 
 @dataclass
 class Settings:
-    api_base_url: str = "https://harvhaxx-1-8t1l.onrender.com"
+    api_base_url: str = "https://harvhaxx-2.onrender.com"
     hwid_salt: str = "change-this-salt-in-production"
     dll_path: str = "harvey.dll"
     use_embedded_payload: bool = True
