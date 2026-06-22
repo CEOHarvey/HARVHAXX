@@ -158,6 +158,8 @@ export default function AdminPage() {
   const [tick, setTick] = useState(0);
   const [selectedPrintDurations, setSelectedPrintDurations] = useState<number[]>([]);
   const [includeGeneratedBatch, setIncludeGeneratedBatch] = useState(true);
+  const [lastRefreshed, setLastRefreshed] = useState<number>(Date.now());
+  const [refreshing, setRefreshing] = useState(false);
 
   const durationSeconds = useMemo(() => toSeconds(durAmount, durUnit), [durAmount, durUnit]);
 
@@ -199,7 +201,11 @@ export default function AdminPage() {
   useEffect(() => {
     if (!token) return;
     const id = setInterval(() => {
-      loadAll(token).catch(() => {});
+      setRefreshing(true);
+      loadAll(token)
+        .then(() => setLastRefreshed(Date.now()))
+        .catch(() => {})
+        .finally(() => setRefreshing(false));
     }, 5000);
     return () => clearInterval(id);
   }, [token, loadAll]);
@@ -222,6 +228,23 @@ export default function AdminPage() {
     } catch {
       setCopyMsg("Copy failed — select and copy manually");
     }
+  }
+
+  function timeAgo(ts: number): string {
+    const sec = Math.floor((Date.now() - ts) / 1000);
+    if (sec < 5) return "just now";
+    if (sec < 60) return `${sec}s ago`;
+    return `${Math.floor(sec / 60)}m ago`;
+  }
+
+  async function manualRefresh() {
+    if (!token || refreshing) return;
+    setRefreshing(true);
+    try {
+      await loadAll(token);
+      setLastRefreshed(Date.now());
+    } catch {}
+    setRefreshing(false);
   }
 
   async function adminLogin(e: React.FormEvent) {
@@ -484,12 +507,12 @@ export default function AdminPage() {
           <thead>
             <tr>
               <th>Key</th>
-              <th>Category</th>
-              <th>Duration</th>
+              <th className="hide-mobile">Category</th>
+              <th className="hide-mobile">Duration</th>
               <th>Status</th>
               <th>User</th>
-              <th>Bound player</th>
-              <th>HWID</th>
+              <th className="hide-mobile">Bound player</th>
+              <th className="hide-mobile">HWID</th>
               <th>Remaining</th>
               {showActions && <th>Actions</th>}
             </tr>
@@ -519,16 +542,16 @@ export default function AdminPage() {
                         {l.license_key}
                       </code>
                     </td>
-                    <td>
+                    <td className="hide-mobile">
                       <span className="badge active">{l.category}</span>
                     </td>
-                    <td>{l.duration_label}</td>
+                    <td className="hide-mobile">{l.duration_label}</td>
                     <td>
                       <span className={`badge ${l.status}`}>{l.status}</span>
                     </td>
                     <td>{l.username ?? "—"}</td>
-                    <td>{l.bound_player_name ?? "—"}</td>
-                    <td>{displayHwid(l.hwid_hash, l.hwid_pending_reset)}</td>
+                    <td className="hide-mobile">{l.bound_player_name ?? "—"}</td>
+                    <td className="hide-mobile">{displayHwid(l.hwid_hash, l.hwid_pending_reset)}</td>
                     <td>
                       {l.status === "active" && l.expires_at ? (
                         <span className={`countdown ${left <= 0 ? "expired" : ""}`}>
@@ -612,6 +635,16 @@ export default function AdminPage() {
           <p className="subtitle">
             <span className="live-dot">Live</span> — HARVEY keys · multi-HWID · one login at a time
           </p>
+          <div className="refresh-indicator">
+            <span className="refresh-time">Updated {timeAgo(lastRefreshed)}</span>
+            <button
+              type="button"
+              className={`refresh-btn ${refreshing ? "refreshing" : ""}`}
+              onClick={manualRefresh}
+            >
+              {refreshing ? <span className="refresh-spin">↻</span> : "↻"} Refresh
+            </button>
+          </div>
         </div>
         <div className="header-actions">
           <ThemeToggle />
@@ -849,15 +882,15 @@ export default function AdminPage() {
           <h2 className="section-title">Expired logs</h2>
           <div className="table-wrap">
             <table>
-              <thead>
-                <tr>
-                  <th>Key</th>
-                  <th>User</th>
-                  <th>Category</th>
-                  <th>HWID</th>
-                  <th>Expired at</th>
-                </tr>
-              </thead>
+                <thead>
+                  <tr>
+                    <th>Key</th>
+                    <th>User</th>
+                    <th className="hide-mobile">Category</th>
+                    <th className="hide-mobile">HWID</th>
+                    <th>Expired at</th>
+                  </tr>
+                </thead>
               <tbody>
                 {expiryLogs.length === 0 ? (
                   <tr>
@@ -874,10 +907,10 @@ export default function AdminPage() {
                         </code>
                       </td>
                       <td>{r.username ?? "—"}</td>
-                      <td>
+                      <td className="hide-mobile">
                         <span className="badge expired">{r.category}</span>
                       </td>
-                      <td>
+                      <td className="hide-mobile">
                         <code className="hwid-full">{r.hwid_hash ?? "—"}</code>
                       </td>
                       <td>{new Date(r.expired_at).toLocaleString()}</td>
@@ -899,16 +932,16 @@ export default function AdminPage() {
           </div>
           <div className="table-wrap">
             <table>
-              <thead>
-                <tr>
-                  <th>Username</th>
-                  <th>Email</th>
-                  <th>Password</th>
-                  <th>HWID</th>
-                  <th>IP</th>
-                  <th>Registered</th>
-                </tr>
-              </thead>
+                <thead>
+                  <tr>
+                    <th>Username</th>
+                    <th className="hide-mobile">Email</th>
+                    <th>Password</th>
+                    <th className="hide-mobile">HWID</th>
+                    <th className="hide-mobile">IP</th>
+                    <th className="hide-mobile">Registered</th>
+                  </tr>
+                </thead>
               <tbody>
                 {registrationLogs.length === 0 ? (
                   <tr>
@@ -920,7 +953,7 @@ export default function AdminPage() {
                   registrationLogs.map((r) => (
                     <tr key={r.id}>
                       <td>{r.username}</td>
-                      <td>{r.email}</td>
+                      <td className="hide-mobile">{r.email}</td>
                       <td>
                         <code
                           className="key-click"
@@ -931,11 +964,11 @@ export default function AdminPage() {
                           {r.password_plain}
                         </code>
                       </td>
-                      <td>
+                      <td className="hide-mobile">
                         <code className="hwid-full">{r.hwid_hash}</code>
                       </td>
-                      <td>{r.client_ip ?? "—"}</td>
-                      <td>{new Date(r.created_at).toLocaleString()}</td>
+                      <td className="hide-mobile">{r.client_ip ?? "—"}</td>
+                      <td className="hide-mobile">{new Date(r.created_at).toLocaleString()}</td>
                     </tr>
                   ))
                 )}
@@ -953,18 +986,18 @@ export default function AdminPage() {
           </div>
           <div className="table-wrap">
             <table>
-              <thead>
-                <tr>
-                  <th>Status</th>
-                  <th>User</th>
-                  <th>Bound player</th>
-                  <th>Bound HWIDs</th>
-                  <th>Current HWID</th>
-                  <th>License</th>
-                  <th>Last seen</th>
-                  <th></th>
-                </tr>
-              </thead>
+                <thead>
+                  <tr>
+                    <th>Status</th>
+                    <th>User</th>
+                    <th className="hide-mobile">Bound player</th>
+                    <th className="hide-mobile">Bound HWIDs</th>
+                    <th className="hide-mobile">Current HWID</th>
+                    <th>License</th>
+                    <th className="hide-mobile">Last seen</th>
+                    <th></th>
+                  </tr>
+                </thead>
               <tbody>
                 {sessions.length === 0 ? (
                   <tr>
@@ -981,15 +1014,15 @@ export default function AdminPage() {
                         </span>
                       </td>
                       <td>{s.username}</td>
-                      <td>{s.bound_player_name ?? "—"}</td>
-                      <td>{s.bound_hwid_count}</td>
-                      <td>
+                      <td className="hide-mobile">{s.bound_player_name ?? "—"}</td>
+                      <td className="hide-mobile">{s.bound_hwid_count}</td>
+                      <td className="hide-mobile">
                         <code className="hwid-full">{s.hwid_hash}</code>
                       </td>
                       <td>
                         <code>{s.license_key ?? "—"}</code>
                       </td>
-                      <td>{new Date(s.last_seen_at).toLocaleString()}</td>
+                      <td className="hide-mobile">{new Date(s.last_seen_at).toLocaleString()}</td>
                       <td>
                         <button type="button" className="warn" onClick={() => kickSession(s.user_id)}>
                           Kick
