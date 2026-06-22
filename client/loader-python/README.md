@@ -37,7 +37,7 @@ Embeds:
 
 ## Flow (unchanged)
 
-1. Login / register → API `https://harvhaxx-1.onrender.com`
+1. Login / register → API `https://harvhaxx-1-8t1l.onrender.com`
 2. Activate license if needed
 3. Locate / auto-find `hyxd.exe`
 4. **Start game** → copies embedded KO.exe → runs as admin
