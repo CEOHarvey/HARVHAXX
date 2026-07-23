@@ -605,6 +605,13 @@ public partial class MainWindow : Window
             BeginExitCountdown();
     }
 
+    private async void ChatWithDev_Click(object sender, RoutedEventArgs e)
+    {
+        // Pass the api client only if the user is authenticated (token is set)
+        var apiForChat = string.IsNullOrWhiteSpace(_token) ? null : _api;
+        await ChatService.OpenSupportAsync(_settings, apiForChat, _username);
+    }
+
     private void TitleBar_MouseDown(object sender, System.Windows.Input.MouseButtonEventArgs e)
     {
         if (e.LeftButton == System.Windows.Input.MouseButtonState.Pressed)

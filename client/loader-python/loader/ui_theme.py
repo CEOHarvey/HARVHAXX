@@ -322,6 +322,34 @@ def bottom_hint(parent: tk.Misc, text: str) -> tk.Label:
     return lbl
 
 
+def chat_button(parent: tk.Misc, command) -> tk.Button:
+    """Luxury 'Chat with Developer' button — blue accent, subdued."""
+    CHAT_BG = "#0e1a2e"
+    CHAT_HOVER = "#162540"
+    CHAT_FG = "#60a5fa"
+    btn = tk.Button(
+        parent,
+        text="💬  Chat with Developer",
+        command=command,
+        bg=CHAT_BG,
+        fg=CHAT_FG,
+        activebackground=CHAT_HOVER,
+        activeforeground="#93c5fd",
+        font=FONT_LABEL,
+        relief=tk.FLAT,
+        cursor="hand2",
+        padx=8,
+        pady=4,
+        borderwidth=1,
+        highlightthickness=1,
+        highlightbackground="#1e3a5f",
+        highlightcolor="#3B82F6",
+    )
+    btn.pack(fill=tk.X, pady=(4, 2))
+    bind_button_hover(btn, CHAT_BG, CHAT_HOVER)
+    return btn
+
+
 def secondary_button(parent: tk.Misc, text: str, command) -> tk.Button:
     btn = tk.Button(
         parent,

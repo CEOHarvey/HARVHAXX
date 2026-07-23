@@ -46,6 +46,14 @@ public sealed class ApiClient : IDisposable
         // ignore if already logged out
     }
 
+    public async Task<string?> GetSupportTokenAsync(CancellationToken ct = default)
+    {
+        var res = await _http.PostAsync("chat/support-token", null, ct);
+        if (!res.IsSuccessStatusCode) return null;
+        var body = await res.Content.ReadFromJsonAsync<SupportTokenResult>(cancellationToken: ct);
+        return body?.SupportToken;
+    }
+
     public async Task<LicenseStatusResult> ActivateAsync(string licenseKey, string hwidHash, CancellationToken ct = default)
     {
         var res = await _http.PostAsJsonAsync("license/activate", new { license_key = licenseKey, hwid_hash = hwidHash }, ct);
@@ -84,6 +92,12 @@ public sealed class ApiClient : IDisposable
     }
 
     public void Dispose() => _http.Dispose();
+}
+
+public sealed class SupportTokenResult
+{
+    [JsonPropertyName("support_token")] public string SupportToken { get; set; } = "";
+    [JsonPropertyName("expires_in_seconds")] public int ExpiresInSeconds { get; set; }
 }
 
 public sealed class TokenResult

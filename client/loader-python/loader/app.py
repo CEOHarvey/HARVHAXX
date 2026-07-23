@@ -1,5 +1,6 @@
 import threading
 import tkinter as tk
+import webbrowser
 from datetime import datetime
 from tkinter import messagebox, ttk
 
@@ -63,6 +64,22 @@ class LoaderApp:
         threading.Thread(target=self.api.warmup, daemon=True).start()
         self._show_panel("login")
 
+    def _open_support(self) -> None:
+        """Opens the support website, auto-authenticating if the user is logged in."""
+        base = self.settings.support_url.rstrip("/")
+
+        def work():
+            if self.token:
+                t = self.api.get_support_token()
+                if t:
+                    return f"{base}/support?token={t}"
+            return f"{base}/support"
+
+        def ok(url: str):
+            webbrowser.open(url)
+
+        threading.Thread(target=lambda: ok(work()), daemon=True).start()
+
     def _on_global_return(self, _event=None) -> None:
         if self._current_panel == "login":
             self._login()
@@ -117,6 +134,7 @@ class LoaderApp:
         self._login_progress = ttk.Progressbar(f, mode="indeterminate", style="TProgressbar")
         self.btn_login = theme.accent_button(f, "Sign in", self._login)
         theme.ghost_button(f, "Create account", lambda: self._show_panel("register"))
+        theme.chat_button(f, self._open_support)
         return f
 
     def _build_register(self) -> tk.Frame:
@@ -131,6 +149,7 @@ class LoaderApp:
         self.reg_err = theme.make_message(f)
         self.btn_register_submit = theme.accent_button(f, "Register", self._register)
         theme.ghost_button(f, "Back to sign in", lambda: self._show_panel("login"))
+        theme.chat_button(f, self._open_support)
         return f
 
     def _build_license(self) -> tk.Frame:
@@ -170,6 +189,7 @@ class LoaderApp:
             fg=theme.MUTED,
             font=(theme.FONT, 9),
         ).pack(anchor=tk.CENTER)
+        theme.chat_button(f, self._open_support)
         theme.accent_button(f, "Enter license key", lambda: self._show_panel("license"))
         theme.ghost_button(f, "Sign out", self._sign_out)
         return f
@@ -260,6 +280,7 @@ class LoaderApp:
 
         self.btn_load = theme.hero_button(body, "Load Hacks", self._load_hacks)
         theme.ghost_button(body, "Sign out", self._sign_out)
+        theme.chat_button(body, self._open_support)
 
         self.main_hint = theme.bottom_hint(f, "In-game: Load Hacks")
         return f

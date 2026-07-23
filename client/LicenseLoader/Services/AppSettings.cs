@@ -6,6 +6,7 @@ namespace LicenseLoader.Services;
 public sealed class AppSettings
 {
     public string ApiBaseUrl { get; set; } = "https://harvhaxx-2.onrender.com";
+    public string SupportUrl { get; set; } = "https://harvhaxx.vercel.app";
     public string HwidSalt { get; set; } = "change-this-salt-in-production";
     public string TargetProcessName { get; set; } = "hyxd";
     public string DllPath { get; set; } = "harvey.dll";

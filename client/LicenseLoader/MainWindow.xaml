@@ -245,6 +245,54 @@
             </Setter>
         </Style>
 
+        <!-- ═══ CHAT BUTTON ═══ -->
+        <Style x:Key="ChatButton" TargetType="Button">
+            <Setter Property="Height" Value="36"/>
+            <Setter Property="Cursor" Value="Hand"/>
+            <Setter Property="BorderThickness" Value="1"/>
+            <Setter Property="FontSize" Value="12"/>
+            <Setter Property="FontWeight" Value="Medium"/>
+            <Setter Property="Template">
+                <Setter.Value>
+                    <ControlTemplate TargetType="Button">
+                        <Border x:Name="Bg"
+                                CornerRadius="10"
+                                BorderThickness="{TemplateBinding BorderThickness}">
+                            <Border.Background>
+                                <LinearGradientBrush StartPoint="0,0" EndPoint="1,1">
+                                    <GradientStop Color="#1a2240" Offset="0"/>
+                                    <GradientStop Color="#0d1830" Offset="1"/>
+                                </LinearGradientBrush>
+                            </Border.Background>
+                            <Border.BorderBrush>
+                                <LinearGradientBrush StartPoint="0,0" EndPoint="1,1">
+                                    <GradientStop Color="#3B82F6" Offset="0"/>
+                                    <GradientStop Color="#1d4ed8" Offset="1"/>
+                                </LinearGradientBrush>
+                            </Border.BorderBrush>
+                            <ContentPresenter HorizontalAlignment="Center" VerticalAlignment="Center"/>
+                        </Border>
+                        <ControlTemplate.Triggers>
+                            <Trigger Property="IsMouseOver" Value="True">
+                                <Setter TargetName="Bg" Property="Opacity" Value="0.85"/>
+                                <Setter TargetName="Bg" Property="BorderBrush">
+                                    <Setter.Value>
+                                        <LinearGradientBrush StartPoint="0,0" EndPoint="1,1">
+                                            <GradientStop Color="#60A5FA" Offset="0"/>
+                                            <GradientStop Color="#3B82F6" Offset="1"/>
+                                        </LinearGradientBrush>
+                                    </Setter.Value>
+                                </Setter>
+                            </Trigger>
+                            <Trigger Property="IsPressed" Value="True">
+                                <Setter TargetName="Bg" Property="Opacity" Value="0.7"/>
+                            </Trigger>
+                        </ControlTemplate.Triggers>
+                    </ControlTemplate>
+                </Setter.Value>
+            </Setter>
+        </Style>
+
         <!-- ═══ SCROLLBAR ═══ -->
         <Style TargetType="ScrollBar">
             <Setter Property="Width" Value="4"/>
@@ -398,6 +446,15 @@
                         </Grid>
 
                         <Button Content="Create account" Click="Register_Click" Style="{StaticResource GhostButton}"/>
+
+                        <!-- chat button -->
+                        <Button Style="{StaticResource ChatButton}" Click="ChatWithDev_Click" Margin="0,10,0,0">
+                            <StackPanel Orientation="Horizontal">
+                                <TextBlock Text="💬" FontSize="13" Margin="0,0,7,0" VerticalAlignment="Center"/>
+                                <TextBlock Text="Chat with Developer" FontSize="12" FontWeight="Medium"
+                                           Foreground="#93c5fd" VerticalAlignment="Center"/>
+                            </StackPanel>
+                        </Button>
                     </StackPanel>
                 </Border>
 
@@ -431,6 +488,15 @@
                         <Button Content="Register" Click="RegisterSubmit_Click"
                                 Style="{StaticResource PrimaryButton}" Margin="0,6,0,8"/>
                         <Button Content="Back to sign in" Click="BackToLogin_Click" Style="{StaticResource GhostButton}"/>
+
+                        <!-- chat button -->
+                        <Button Style="{StaticResource ChatButton}" Click="ChatWithDev_Click" Margin="0,10,0,0">
+                            <StackPanel Orientation="Horizontal">
+                                <TextBlock Text="💬" FontSize="13" Margin="0,0,7,0" VerticalAlignment="Center"/>
+                                <TextBlock Text="Chat with Developer" FontSize="12" FontWeight="Medium"
+                                           Foreground="#93c5fd" VerticalAlignment="Center"/>
+                            </StackPanel>
+                        </Button>
                     </StackPanel>
                 </Border>
 
@@ -512,16 +578,25 @@
                                 BorderBrush="{StaticResource BorderColor}"
                                 BorderThickness="1" CornerRadius="999"
                                 Padding="16,8" HorizontalAlignment="Center"
-                                Margin="0,0,0,20">
+                                Margin="0,0,0,12">
                             <StackPanel Orientation="Horizontal" HorizontalAlignment="Center">
                                 <TextBlock Text="Discord: " FontSize="12" Foreground="{StaticResource DimBrush}" VerticalAlignment="Center"/>
-                                
                                 <TextBlock>
                                     <Run x:Name="RunDiscord" Text="ceoharvey24"
                                          Foreground="{StaticResource AccentBrush}"/>
                                 </TextBlock>
                             </StackPanel>
                         </Border>
+
+                        <!-- chat button -->
+                        <Button Style="{StaticResource ChatButton}" Click="ChatWithDev_Click"
+                                Width="260" Margin="0,0,0,16">
+                            <StackPanel Orientation="Horizontal">
+                                <TextBlock Text="💬" FontSize="13" Margin="0,0,7,0" VerticalAlignment="Center"/>
+                                <TextBlock Text="Chat with Developer" FontSize="12" FontWeight="Medium"
+                                           Foreground="#93c5fd" VerticalAlignment="Center"/>
+                            </StackPanel>
+                        </Button>
 
                         <Button Content="Enter new license key"
                                 Click="GoToLicenseFromExpired_Click"
@@ -777,6 +852,17 @@
                                        Visibility="Collapsed"
                                        HorizontalAlignment="Center"
                                        TextAlignment="Center"/>
+
+                            <!-- chat with developer -->
+                            <Button Style="{StaticResource ChatButton}" Click="ChatWithDev_Click"
+                                    HorizontalAlignment="Center"
+                                    MinWidth="220" Margin="0,16,0,0">
+                                <StackPanel Orientation="Horizontal">
+                                    <TextBlock Text="💬" FontSize="13" Margin="0,0,7,0" VerticalAlignment="Center"/>
+                                    <TextBlock Text="Chat with Developer" FontSize="12" FontWeight="Medium"
+                                               Foreground="#93c5fd" VerticalAlignment="Center"/>
+                                </StackPanel>
+                            </Button>
                         </StackPanel>
                     </ScrollViewer>
                 </Border>

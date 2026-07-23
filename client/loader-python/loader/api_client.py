@@ -98,6 +98,16 @@ class ApiClient:
         except requests.RequestException:
             pass
 
+    def get_support_token(self) -> Optional[str]:
+        """Returns a short-lived support JWT for the chat website, or None on failure."""
+        try:
+            res = self._session.post(self._base + "chat/support-token", timeout=self._TIMEOUT)
+            if res.ok:
+                return res.json().get("support_token")
+        except requests.RequestException:
+            pass
+        return None
+
     def activate(self, license_key: str, hwid_hash: str) -> LicenseStatus:
         return self._license_from(
             self._post(

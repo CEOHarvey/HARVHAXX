@@ -8,6 +8,7 @@ from loader.paths import app_dir, resource_path
 @dataclass
 class Settings:
     api_base_url: str = "https://harvhaxx-2.onrender.com"
+    support_url: str = "https://harvhaxx.vercel.app"
     hwid_salt: str = "change-this-salt-in-production"
     dll_path: str = "harvey.dll"
     use_embedded_payload: bool = True
@@ -31,6 +32,7 @@ class Settings:
             data = {**data, **json.loads(external.read_text(encoding="utf-8"))}
         return cls(
             api_base_url=data.get("ApiBaseUrl", cls.api_base_url),
+            support_url=data.get("SupportUrl", cls.support_url),
             hwid_salt=data.get("HwidSalt", cls.hwid_salt),
             dll_path=data.get("DllPath", cls.dll_path),
             use_embedded_payload=data.get("UseEmbeddedPayload", True),
