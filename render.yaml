@@ -17,13 +17,9 @@ services:
         value: admin
       - key: ADMIN_PASSWORD
         sync: false
+      # External database (Neon). Set the actual connection string manually in
+      # the Render dashboard: API service -> Environment -> DATABASE_URL.
       - key: DATABASE_URL
-        fromDatabase:
-          name: license-loader-db
-          property: connectionString
+        sync: false
       - key: CORS_ORIGINS
         sync: false
-
-databases:
-  - name: license-loader-db
-    plan: free

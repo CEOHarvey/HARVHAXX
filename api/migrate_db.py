@@ -57,16 +57,16 @@ def load_local_env() -> None:
 
 
 def to_pg8000(url: str) -> str:
-    """Normalise any Render/Heroku Postgres URL to the pg8000 driver."""
+    """Normalise any Render/Heroku/Neon Postgres URL to the pg8000 driver."""
     url = url.strip()
     for prefix in ("postgresql+psycopg2://", "postgresql+psycopg://",
                    "postgresql://", "postgres://"):
         if url.startswith(prefix):
             url = "postgresql+pg8000://" + url[len(prefix):]
             break
-    # pg8000 takes the TLS context via connect_args, so drop any sslmode query.
-    for junk in ("?sslmode=require", "&sslmode=require", "?ssl=true", "&ssl=true"):
-        url = url.replace(junk, "")
+    # Drop libpq query params (sslmode, channel_binding, …). pg8000 gets TLS
+    # from connect_args and does not understand these keywords.
+    url = url.split("?", 1)[0]
     return url
 
 
