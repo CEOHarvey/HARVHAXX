@@ -643,6 +643,7 @@ export default function SupportPage() {
   const [me, setMe] = useState<MeInfo | null>(null);
   const [authMode, setAuthMode] = useState<"loading_token" | "fallback_input" | "authing" | "ready" | "error">("loading_token");
   const [fallbackUsername, setFallbackUsername] = useState("");
+  const [fallbackPassword, setFallbackPassword] = useState("");
   const [authError, setAuthError] = useState("");
 
   // chat state
@@ -750,16 +751,51 @@ export default function SupportPage() {
     bottomRef.current?.scrollIntoView({ behavior: "smooth" });
   }, [messages, adminTyping]);
 
-  /* ── fallback auth by username ── */
+  /* ── fallback auth by account login (username + password) ──
+     Same credentials the user logs in with in the loader. We log in against
+     /auth/login to get a user token, exchange it for a short-lived support
+     token, then resolve identity exactly like the token-from-loader flow.
+     Password is required so nobody can impersonate another user's chat. */
   async function handleFallbackAuth() {
     const uname = fallbackUsername.trim();
-    if (!uname) return;
+    const pwd = fallbackPassword;
+    if (!uname || !pwd) {
+      setAuthError("Enter your username and password to continue.");
+      return;
+    }
     setAuthMode("authing");
     setAuthError("");
-    // In fallback mode, we can't auto-auth without a token.
-    // Tell user to open from loader.
-    setAuthError("Automatic login requires opening support from the Harvcious Loader. Please click 'Chat with Developer' in the loader.");
-    setAuthMode("fallback_input");
+    try {
+      // 1) Log in with account credentials → user token
+      const loginRes = await fetch(`${API}/auth/login`, {
+        method: "POST",
+        headers: { "Content-Type": "application/json" },
+        body: JSON.stringify({ username: uname, password: pwd }),
+      });
+      if (!loginRes.ok) {
+        throw new Error(
+          loginRes.status === 401
+            ? "Invalid username or password."
+            : "Login failed. Please try again."
+        );
+      }
+      const { access_token } = await loginRes.json();
+
+      // 2) Exchange user token → short-lived support token
+      const stRes = await fetch(`${API}/chat/support-token`, {
+        method: "POST",
+        headers: { Authorization: `Bearer ${access_token}` },
+      });
+      if (!stRes.ok) throw new Error("Could not start support session. Please try again.");
+      const { support_token } = await stRes.json();
+
+      // 3) Resolve identity + enter chat (reuses the loader token flow)
+      setFallbackPassword("");
+      await authWithToken(support_token);
+    } catch (err) {
+      setAuthError(err instanceof Error ? err.message : "Login failed.");
+      setAuthMode("fallback_input");
+    }
   }
 
   /* ── send message ── */
@@ -855,18 +891,28 @@ export default function SupportPage() {
             <span className="auth-icon">💬</span>
             <div className="auth-title">Harvcious Support</div>
             <div className="auth-sub">
-              Open support directly from the loader for instant access — click <strong>Chat with Developer</strong> in the app.
+              Sign in with your account — the same username and password you use in the loader. Or open <strong>Chat with Developer</strong> from the app for instant access.
             </div>
             {authError && <div className="auth-error">{authError}</div>}
             <input
               className="auth-input"
-              placeholder="Or enter your username to continue…"
+              placeholder="Username"
+              autoComplete="username"
               value={fallbackUsername}
               onChange={(e) => setFallbackUsername(e.target.value)}
               onKeyDown={(e) => e.key === "Enter" && handleFallbackAuth()}
             />
+            <input
+              className="auth-input"
+              type="password"
+              placeholder="Password"
+              autoComplete="current-password"
+              value={fallbackPassword}
+              onChange={(e) => setFallbackPassword(e.target.value)}
+              onKeyDown={(e) => e.key === "Enter" && handleFallbackAuth()}
+            />
             <button className="auth-btn" onClick={handleFallbackAuth}>
-              Continue
+              Sign in
             </button>
           </div>
         </div>
