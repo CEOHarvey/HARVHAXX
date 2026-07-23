@@ -318,6 +318,37 @@ async def send_message(
     return out
 
 
+@router.patch("/messages/seen")
+async def mark_admin_messages_seen(
+    token: str = Query(...),
+    db: Session = Depends(get_db),
+):
+    """Customer marks the developer's replies as read.
+
+    Sets seen_at on unseen admin messages for this user and notifies the
+    admin hub so the developer gets a read receipt on their own replies.
+    """
+    user = resolve_support_user(token, db)
+    now = datetime.now(timezone.utc)
+    updated = (
+        db.query(ChatMessage)
+        .filter(
+            ChatMessage.user_id == user.id,
+            ChatMessage.sender == "admin",
+            ChatMessage.seen_at.is_(None),
+        )
+        .update({"seen_at": now})
+    )
+    db.commit()
+    if updated:
+        await manager.send_to_admins({
+            "type": "messages_seen",
+            "user_id": user.id,
+            "seen_at": now.isoformat(),
+        })
+    return {"ok": True, "updated": updated}
+
+
 # ─── admin REST endpoints ────────────────────────────────────────────────────
 
 @router.get("/admin/conversations", response_model=list[ConversationOut])

@@ -722,6 +722,67 @@ const CSS = `
     text-align: left;
   }
 
+  .auth-tips {
+    margin-top: 26px;
+    padding-top: 22px;
+    border-top: 1px solid var(--hair);
+    text-align: left;
+  }
+  .auth-tips-title {
+    font-family: var(--serif);
+    font-size: 15px;
+    color: var(--gold-bright);
+    margin-bottom: 12px;
+    letter-spacing: 0.02em;
+  }
+  .auth-tips-list {
+    list-style: none;
+    counter-reset: tip;
+    display: flex;
+    flex-direction: column;
+    gap: 10px;
+    margin: 0;
+    padding: 0;
+  }
+  .auth-tips-list li {
+    counter-increment: tip;
+    position: relative;
+    padding-left: 34px;
+    font-size: 12.5px;
+    color: var(--muted);
+    line-height: 1.5;
+  }
+  .auth-tips-list li::before {
+    content: counter(tip);
+    position: absolute;
+    left: 0;
+    top: -1px;
+    width: 22px;
+    height: 22px;
+    border-radius: 50%;
+    background: radial-gradient(circle at 32% 28%, #221c14, #100d0a);
+    border: 1px solid rgba(201,164,107,0.45);
+    color: var(--gold-bright);
+    font-family: var(--serif);
+    font-size: 12px;
+    font-weight: 600;
+    display: flex;
+    align-items: center;
+    justify-content: center;
+  }
+  .auth-tips-list strong { color: var(--ivory); font-weight: 600; }
+  .auth-tips-note {
+    margin-top: 16px;
+    padding: 10px 13px;
+    background: rgba(201,164,107,0.06);
+    border: 1px solid rgba(201,164,107,0.18);
+    border-radius: 10px;
+    font-size: 11.5px;
+    color: var(--muted);
+    line-height: 1.5;
+  }
+  .auth-tips-note strong { color: var(--gold-bright); font-weight: 600; }
+
   .loading-spinner {
     width: 40px;
     height: 40px;
@@ -854,7 +915,17 @@ export default function SupportPage() {
     if (res.ok) {
       const data: Message[] = await res.json();
       setMessages(data);
+      markAdminSeen();
     }
+  }
+
+  /* Tell the backend we've read the developer's replies → gives the admin a
+     read receipt (✓✓) on their own messages. */
+  function markAdminSeen() {
+    if (!token) return;
+    fetch(`${API}/chat/messages/seen?token=${encodeURIComponent(token)}`, {
+      method: "PATCH",
+    }).catch(() => {});
   }
 
   function connectWs() {
@@ -877,6 +948,8 @@ export default function SupportPage() {
           if (prev.find((m) => m.id === data.message.id)) return prev;
           return [...prev, data.message];
         });
+        // The developer just replied and the chat is open → mark it read.
+        if (data.message?.sender === "admin") markAdminSeen();
       } else if (data.type === "typing") {
         setAdminTyping(true);
         if (typingTimer) clearTimeout(typingTimer);
@@ -1060,6 +1133,18 @@ export default function SupportPage() {
             <button className="auth-btn" onClick={handleFallbackAuth}>
               Sign in
             </button>
+
+            <div className="auth-tips">
+              <div className="auth-tips-title">New here?</div>
+              <ol className="auth-tips-list">
+                <li>Download &amp; open the <strong>Harvcious Loader</strong>.</li>
+                <li>Create an account (<strong>Sign up</strong>) inside the loader.</li>
+                <li>Sign in here with that same username &amp; password.</li>
+              </ol>
+              <div className="auth-tips-note">
+                Tip: opening <strong>Chat with Developer</strong> from the loader signs you in automatically.
+              </div>
+            </div>
           </div>
         </div>
       </>
