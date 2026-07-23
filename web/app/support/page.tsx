@@ -766,8 +766,10 @@ export default function SupportPage() {
     setAuthMode("authing");
     setAuthError("");
     try {
-      // 1) Log in with account credentials → user token
-      const loginRes = await fetch(`${API}/auth/login`, {
+      // Account login for support chat → short-lived support token.
+      // Uses the web-only /chat/login (no HWID / session claim) so signing in
+      // from a browser never conflicts with the loader session.
+      const loginRes = await fetch(`${API}/chat/login`, {
         method: "POST",
         headers: { "Content-Type": "application/json" },
         body: JSON.stringify({ username: uname, password: pwd }),
@@ -779,17 +781,9 @@ export default function SupportPage() {
             : "Login failed. Please try again."
         );
       }
-      const { access_token } = await loginRes.json();
+      const { support_token } = await loginRes.json();
 
-      // 2) Exchange user token → short-lived support token
-      const stRes = await fetch(`${API}/chat/support-token`, {
-        method: "POST",
-        headers: { Authorization: `Bearer ${access_token}` },
-      });
-      if (!stRes.ok) throw new Error("Could not start support session. Please try again.");
-      const { support_token } = await stRes.json();
-
-      // 3) Resolve identity + enter chat (reuses the loader token flow)
+      // Resolve identity + enter chat (reuses the loader token flow)
       setFallbackPassword("");
       await authWithToken(support_token);
     } catch (err) {

@@ -31,7 +31,7 @@ from app.config import settings
 from app.database import get_db
 from app.deps import get_admin, get_current_user
 from app.models import ChatMessage, User
-from app.security import ALGORITHM, decode_token
+from app.security import ALGORITHM, decode_token, verify_password
 
 logger = logging.getLogger(__name__)
 router = APIRouter(prefix="/chat", tags=["chat"])
@@ -146,6 +146,11 @@ class SupportTokenOut(BaseModel):
     expires_in_seconds: int
 
 
+class SupportLoginIn(BaseModel):
+    username: str
+    password: str
+
+
 class MeOut(BaseModel):
     user_id: int
     username: str
@@ -223,6 +228,29 @@ def get_support_token(
 ):
     """Loader calls this (with user Bearer token) to get a short-lived support token."""
     token = create_support_token(current_user.id, current_user.username)
+    return SupportTokenOut(
+        support_token=token,
+        expires_in_seconds=SUPPORT_TOKEN_EXPIRE_MINUTES * 60,
+    )
+
+
+@router.post("/login", response_model=SupportTokenOut)
+def support_login(body: SupportLoginIn, db: Session = Depends(get_db)):
+    """Web-only account login for support chat.
+
+    Verifies username + password and issues a short-lived support token
+    directly. Unlike /auth/login this does NOT require an approved HWID and
+    does NOT claim a session, so a user can reach their chat from a browser
+    without disturbing (or being blocked by) their loader session. The token
+    it returns only grants access to that user's own support chat.
+    """
+    user = db.query(User).filter(User.username == body.username).first()
+    if not user or not verify_password(body.password, user.password_hash):
+        raise HTTPException(
+            status_code=status.HTTP_401_UNAUTHORIZED,
+            detail="Invalid username or password",
+        )
+    token = create_support_token(user.id, user.username)
     return SupportTokenOut(
         support_token=token,
         expires_in_seconds=SUPPORT_TOKEN_EXPIRE_MINUTES * 60,
