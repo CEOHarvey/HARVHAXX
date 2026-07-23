@@ -35,7 +35,6 @@ from app.security import ALGORITHM, decode_token
 
 logger = logging.getLogger(__name__)
 router = APIRouter(prefix="/chat", tags=["chat"])
-bearer = HTTPBearer(auto_error=False)
 
 SUPPORT_TOKEN_EXPIRE_MINUTES = 30
 
