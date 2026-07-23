@@ -1,6 +1,6 @@
 "use client";
 
-import { useCallback, useEffect, useMemo, useState } from "react";
+import { useCallback, useEffect, useMemo, useRef, useState } from "react";
 import { ThemeToggle } from "./components/ThemeToggle";
 
 const API = process.env.NEXT_PUBLIC_API_URL ?? "http://127.0.0.1:8000";
@@ -160,17 +160,20 @@ export default function AdminPage() {
   const [includeGeneratedBatch, setIncludeGeneratedBatch] = useState(true);
   const [lastRefreshed, setLastRefreshed] = useState<number>(Date.now());
   const [refreshing, setRefreshing] = useState(false);
+  // Guard against overlapping polls (manual + interval) so a slow backend
+  // can't stack up duplicate requests.
+  const loadingRef = useRef(false);
 
   const durationSeconds = useMemo(() => toSeconds(durAmount, durUnit), [durAmount, durUnit]);
 
-  const loadAll = useCallback(async (t: string) => {
+  const loadAll = useCallback(async (t: string, signal?: AbortSignal) => {
     const headers = { Authorization: `Bearer ${t}` };
     const [licRes, sessRes, logRes, regRes, reqRes] = await Promise.all([
-      fetch(`${API}/admin/licenses`, { headers }),
-      fetch(`${API}/admin/sessions`, { headers }),
-      fetch(`${API}/admin/expiry-logs`, { headers }),
-      fetch(`${API}/admin/registration-logs`, { headers }),
-      fetch(`${API}/admin/hwid-requests?status_filter=pending`, { headers }),
+      fetch(`${API}/admin/licenses`, { headers, signal }),
+      fetch(`${API}/admin/sessions`, { headers, signal }),
+      fetch(`${API}/admin/expiry-logs`, { headers, signal }),
+      fetch(`${API}/admin/registration-logs`, { headers, signal }),
+      fetch(`${API}/admin/hwid-requests?status_filter=pending`, { headers, signal }),
     ]);
     if (!licRes.ok) throw new Error(await licRes.text());
     if (!sessRes.ok) throw new Error(await sessRes.text());
@@ -198,17 +201,58 @@ export default function AdminPage() {
     return () => clearInterval(id);
   }, [token]);
 
+  // Shared refresh runner: aborts after 12s (covers a single Render cold
+  // start wake-up), skips if a load is already in flight, and ignores abort
+  // errors so a hidden-tab teardown never surfaces as an error.
+  const POLL_MS = 15000;
+  const LOAD_TIMEOUT_MS = 12000;
+
+  const runRefresh = useCallback(
+    async (t: string) => {
+      if (loadingRef.current) return false;
+      loadingRef.current = true;
+      const ctrl = new AbortController();
+      const timer = setTimeout(() => ctrl.abort(), LOAD_TIMEOUT_MS);
+      try {
+        await loadAll(t, ctrl.signal);
+        setLastRefreshed(Date.now());
+        return true;
+      } catch (err) {
+        if ((err as Error)?.name !== "AbortError") {
+          // Swallow — auto-refresh failures shouldn't kick the user out.
+        }
+        return false;
+      } finally {
+        clearTimeout(timer);
+        loadingRef.current = false;
+      }
+    },
+    [loadAll]
+  );
+
   useEffect(() => {
     if (!token) return;
-    const id = setInterval(() => {
+    let timer: ReturnType<typeof setTimeout>;
+
+    const scheduleNext = () => {
+      timer = setTimeout(tick, POLL_MS);
+    };
+    const tick = async () => {
+      // Pause auto-refresh while the tab is hidden — no point hammering the
+      // backend when nobody is looking. Resume immediately on return.
+      if (document.visibilityState !== "visible") {
+        scheduleNext();
+        return;
+      }
       setRefreshing(true);
-      loadAll(token)
-        .then(() => setLastRefreshed(Date.now()))
-        .catch(() => {})
-        .finally(() => setRefreshing(false));
-    }, 5000);
-    return () => clearInterval(id);
-  }, [token, loadAll]);
+      await runRefresh(token);
+      setRefreshing(false);
+      scheduleNext();
+    };
+
+    scheduleNext();
+    return () => clearTimeout(timer);
+  }, [token, runRefresh]);
 
   async function parseApiError(res: Response): Promise<string> {
     const text = await res.text();
