@@ -6,7 +6,7 @@ import { ThemeToggle } from "./components/ThemeToggle";
 const API = process.env.NEXT_PUBLIC_API_URL ?? "http://127.0.0.1:8000";
 
 type DurUnit = "sec" | "min" | "hour" | "day";
-type TabId = "generate" | "active" | "unused" | "print" | "expired" | "sessions" | "accounts";
+type TabId = "generate" | "active" | "unused" | "print" | "expired" | "sessions" | "accounts" | "resets";
 
 type LicenseRow = {
   id: number;
@@ -62,6 +62,15 @@ type HwidRequestRow = {
   user_id: number;
   username: string;
   hwid_hash: string;
+  status: string;
+  requested_at: string;
+};
+
+type PlayerResetRow = {
+  id: number;
+  user_id: number;
+  username: string;
+  player_name: string | null;
   status: string;
   requested_at: string;
 };
@@ -155,6 +164,7 @@ export default function AdminPage() {
   const [expiryLogs, setExpiryLogs] = useState<ExpiryLogRow[]>([]);
   const [registrationLogs, setRegistrationLogs] = useState<RegistrationLogRow[]>([]);
   const [hwidRequests, setHwidRequests] = useState<HwidRequestRow[]>([]);
+  const [playerResets, setPlayerResets] = useState<PlayerResetRow[]>([]);
   const [durAmount, setDurAmount] = useState(5);
   const [durUnit, setDurUnit] = useState<DurUnit>("min");
   const [qty, setQty] = useState(1);
@@ -174,12 +184,13 @@ export default function AdminPage() {
 
   const loadAll = useCallback(async (t: string, signal?: AbortSignal) => {
     const headers = { Authorization: `Bearer ${t}` };
-    const [licRes, sessRes, logRes, regRes, reqRes] = await Promise.all([
+    const [licRes, sessRes, logRes, regRes, reqRes, prRes] = await Promise.all([
       fetch(`${API}/admin/licenses`, { headers, signal }),
       fetch(`${API}/admin/sessions`, { headers, signal }),
       fetch(`${API}/admin/expiry-logs`, { headers, signal }),
       fetch(`${API}/admin/registration-logs`, { headers, signal }),
       fetch(`${API}/admin/hwid-requests?status_filter=pending`, { headers, signal }),
+      fetch(`${API}/admin/player-reset-requests?status_filter=pending`, { headers, signal }),
     ]);
     if (!licRes.ok) throw new Error(await licRes.text());
     if (!sessRes.ok) throw new Error(await sessRes.text());
@@ -191,6 +202,7 @@ export default function AdminPage() {
     setExpiryLogs(await logRes.json());
     setRegistrationLogs(await regRes.json());
     setHwidRequests(await reqRes.json());
+    if (prRes.ok) setPlayerResets(await prRes.json());
   }, []);
 
   useEffect(() => {
@@ -324,6 +336,7 @@ export default function AdminPage() {
     setExpiryLogs([]);
     setRegistrationLogs([]);
     setHwidRequests([]);
+    setPlayerResets([]);
   }
 
   async function generateKeys(e: React.FormEvent) {
@@ -398,6 +411,16 @@ export default function AdminPage() {
       method: "POST",
       headers: { "Content-Type": "application/json", Authorization: `Bearer ${token}` },
       body: JSON.stringify({ username }),
+    });
+    if (!res.ok) setError(await parseApiError(res));
+    else await loadAll(token);
+  }
+
+  async function dismissPlayerReset(id: number) {
+    if (!token) return;
+    const res = await fetch(`${API}/admin/player-reset-requests/${id}/dismiss`, {
+      method: "POST",
+      headers: { Authorization: `Bearer ${token}` },
     });
     if (!res.ok) setError(await parseApiError(res));
     else await loadAll(token);
@@ -557,6 +580,7 @@ export default function AdminPage() {
     { id: "expired", label: "Expired logs", count: expiryLogs.length },
     { id: "accounts", label: "Account logs", count: registrationLogs.length },
     { id: "sessions", label: "Sessions", count: onlineSessions.length },
+    { id: "resets", label: "Reset requests", count: playerResets.length },
   ];
 
   function licenseTable(rows: LicenseRow[], mode: "full" | "unused" | "readonly" = "full") {
@@ -1094,6 +1118,54 @@ export default function AdminPage() {
                         <button type="button" className="warn" onClick={() => kickSession(s.user_id)}>
                           Kick
                         </button>
+                      </td>
+                    </tr>
+                  ))
+                )}
+              </tbody>
+            </table>
+          </div>
+        </section>
+      )}
+
+      {tab === "resets" && (
+        <section className="card">
+          <h2 className="section-title">Player name reset requests</h2>
+          <div className="info-banner">
+            Customers request an in-game name unbind from the loader. Reset clears their bound name so they can bind a new one on next Load Hacks.
+          </div>
+          <div className="table-wrap">
+            <table>
+              <thead>
+                <tr>
+                  <th>User</th>
+                  <th className="hide-mobile">Bound name</th>
+                  <th className="hide-mobile">Requested</th>
+                  <th></th>
+                </tr>
+              </thead>
+              <tbody>
+                {playerResets.length === 0 ? (
+                  <tr>
+                    <td colSpan={4} className="muted">
+                      No pending reset requests.
+                    </td>
+                  </tr>
+                ) : (
+                  playerResets.map((r) => (
+                    <tr key={r.id}>
+                      <td>{r.username}</td>
+                      <td className="hide-mobile">{r.player_name ?? "—"}</td>
+                      <td className="hide-mobile">{new Date(r.requested_at).toLocaleString()}</td>
+                      <td>
+                        <div className="actions">
+                          <button type="button" className="ghost" onClick={() => resetPlayer(r.username)}>
+                            Reset name
+                          </button>
+                          <button type="button" className="warn" onClick={() => dismissPlayerReset(r.id)}>
+                            Dismiss
+                          </button>
+                        </div>
                       </td>
                     </tr>
                   ))

@@ -6,18 +6,29 @@ from sqlalchemy.orm import Session
 from app.database import get_db
 from app.deps import get_current_user
 from app.discord_notify import notify_player_reset_requested
-from app.models import User
+from app.models import PlayerNameResetRequest, User
 from app.schemas import PlayerAccountResponse, PlayerBindRequest, PlayerBindResponse
 
 router = APIRouter(prefix="/player", tags=["player"])
 
 
 @router.post("/request-reset")
-def request_player_reset(user: User = Depends(get_current_user)):
-    """User asks admin to clear their bound in-game name. Admin resets it on the web."""
+def request_player_reset(user: User = Depends(get_current_user), db: Session = Depends(get_db)):
+    """User asks admin to clear their bound in-game name. Shows up in the web admin."""
     bound = (user.bound_player_name or "").strip() or None
     if not bound:
         return {"ok": True, "message": "No bound player to reset."}
+
+    # Reuse an existing pending request instead of stacking duplicates.
+    existing = (
+        db.query(PlayerNameResetRequest)
+        .filter(PlayerNameResetRequest.user_id == user.id, PlayerNameResetRequest.status == "pending")
+        .first()
+    )
+    if not existing:
+        db.add(PlayerNameResetRequest(user_id=user.id, player_name=bound, status="pending"))
+        db.commit()
+
     try:
         notify_player_reset_requested(user.username, bound)
     except Exception:

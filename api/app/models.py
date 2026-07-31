@@ -81,6 +81,21 @@ class HwidBindRequest(Base):
     user = relationship("User", back_populates="hwid_requests")
 
 
+class PlayerNameResetRequest(Base):
+    """Customer asked (from the loader) to unbind their in-game name. Shown in web admin."""
+
+    __tablename__ = "player_reset_requests"
+
+    id: Mapped[int] = mapped_column(Integer, primary_key=True)
+    user_id: Mapped[int] = mapped_column(ForeignKey("users.id"), index=True)
+    player_name: Mapped[Optional[str]] = mapped_column(String(64), nullable=True)
+    status: Mapped[str] = mapped_column(String(16), default="pending", index=True)
+    requested_at: Mapped[datetime] = mapped_column(DateTime(timezone=True), server_default=func.now())
+    resolved_at: Mapped[Optional[datetime]] = mapped_column(DateTime(timezone=True), nullable=True)
+
+    user = relationship("User")
+
+
 class License(Base):
     __tablename__ = "licenses"
 

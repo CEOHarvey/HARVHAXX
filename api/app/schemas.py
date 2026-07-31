@@ -53,6 +53,15 @@ class PlayerResetRequest(BaseModel):
     username: str = Field(min_length=1, max_length=64)
 
 
+class PlayerResetRow(BaseModel):
+    id: int
+    user_id: int
+    username: str
+    player_name: str | None = None
+    status: str
+    requested_at: datetime
+
+
 class PlayerBindRequest(BaseModel):
     player_name: str = Field(min_length=2, max_length=40)
 

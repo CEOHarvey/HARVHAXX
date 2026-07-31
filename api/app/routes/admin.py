@@ -19,6 +19,7 @@ from app.models import (
     HwidBindRequestStatus,
     License,
     LicenseStatus,
+    PlayerNameResetRequest,
     RegistrationLog,
     User,
     UserHwid,
@@ -32,6 +33,7 @@ from app.schemas import (
     HwidRequestRow,
     LicenseRow,
     PlayerResetRequest,
+    PlayerResetRow,
     SessionRow,
     TokenResponse,
     UserHwidRow,
@@ -200,6 +202,29 @@ def reset_hwid(license_id: int, admin: str = Depends(get_admin), db: Session = D
     return {"ok": True, "message": "HWID reset — customer can bind new PC on next loader login"}
 
 
+@router.get("/player-reset-requests", response_model=list[PlayerResetRow])
+def list_player_reset_requests(
+    status_filter: str = "pending",
+    _: str = Depends(get_admin),
+    db: Session = Depends(get_db),
+):
+    q = db.query(PlayerNameResetRequest).options(joinedload(PlayerNameResetRequest.user))
+    if status_filter != "all":
+        q = q.filter(PlayerNameResetRequest.status == status_filter)
+    rows = q.order_by(PlayerNameResetRequest.requested_at.desc()).all()
+    return [
+        PlayerResetRow(
+            id=r.id,
+            user_id=r.user_id,
+            username=r.user.username if r.user else "—",
+            player_name=r.player_name,
+            status=r.status,
+            requested_at=r.requested_at,
+        )
+        for r in rows
+    ]
+
+
 @router.post("/players/reset")
 def reset_bound_player(body: PlayerResetRequest, _: str = Depends(get_admin), db: Session = Depends(get_db)):
     """Clear a user's bound in-game name so they can bind a new one on next Load Hacks."""
@@ -209,8 +234,28 @@ def reset_bound_player(body: PlayerResetRequest, _: str = Depends(get_admin), db
     old = user.bound_player_name
     user.bound_player_name = None
     user.bound_player_at = None
+    # Resolve any pending reset requests for this user.
+    now = datetime.now(timezone.utc)
+    for req in (
+        db.query(PlayerNameResetRequest)
+        .filter(PlayerNameResetRequest.user_id == user.id, PlayerNameResetRequest.status == "pending")
+        .all()
+    ):
+        req.status = "resolved"
+        req.resolved_at = now
     db.commit()
     return {"ok": True, "message": f"Bound player cleared (was: {old or '—'})"}
+
+
+@router.post("/player-reset-requests/{request_id}/dismiss")
+def dismiss_player_reset_request(request_id: int, _: str = Depends(get_admin), db: Session = Depends(get_db)):
+    req = db.get(PlayerNameResetRequest, request_id)
+    if not req:
+        raise HTTPException(status_code=status.HTTP_404_NOT_FOUND, detail="Request not found")
+    req.status = "resolved"
+    req.resolved_at = datetime.now(timezone.utc)
+    db.commit()
+    return {"ok": True}
 
 
 @router.post("/sessions/{user_id}/kick")
