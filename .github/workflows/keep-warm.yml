@@ -1,0 +1,34 @@
+# Keep the Render free-tier API warm so the dashboard doesn't sit through a
+# 30–60s cold start on first load. Render sleeps free web services after ~15 min
+# of inactivity, so we ping /health every 10 minutes.
+#
+# Set the repository variable (Settings → Secrets and variables → Actions →
+# Variables) `API_HEALTH_URL` to the service's health endpoint, e.g.
+#   https://license-loader-api.onrender.com/health
+# If unset, it falls back to the default below.
+
+name: keep-warm
+
+on:
+  schedule:
+    # Every 10 minutes. Note: GitHub cron runs in UTC and may drift by a few
+    # minutes on busy queues — that's fine, well under Render's 15 min sleep.
+    - cron: "*/10 * * * *"
+  workflow_dispatch: {} # allow manual runs for testing
+
+jobs:
+  ping:
+    runs-on: ubuntu-latest
+    steps:
+      - name: Ping API health endpoint
+        env:
+          API_HEALTH_URL: ${{ vars.API_HEALTH_URL || 'https://license-loader-api.onrender.com/health' }}
+        run: |
+          echo "Pinging ${API_HEALTH_URL} …"
+          # --max-time 30 covers a single cold start wake-up; curl exits non-zero
+          # only on real failure. We continue anyway so the cron never fails red.
+          if curl -fsS --max-time 30 -o /dev/null -w "HTTP %{http_code} in %{time_total}s\n" "${API_HEALTH_URL}"; then
+            echo "keep-warm OK"
+          else
+            echo "keep-warm ping failed (service may be redeploying) — non-fatal"
+          fi

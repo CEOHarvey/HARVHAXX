@@ -77,7 +77,13 @@ const PRESETS: { label: string; amount: number; unit: DurUnit }[] = [
   { label: "30 days", amount: 30, unit: "day" },
 ];
 
-const CATEGORIES = ["standard", "premium", "trial", "vip", "lifetime"];
+const PRODUCTS = [
+  { id: "spoofer", label: "Spoofer", prefix: "SPF" },
+  { id: "macro", label: "Macro", prefix: "MACRO" },
+  { id: "knivesout", label: "KnivesOut", prefix: "KO" },
+];
+const productLabel = (id: string) =>
+  PRODUCTS.find((p) => p.id === id)?.label ?? id;
 const PRINT_COLS_PER_ROW = 3;
 
 function printDurationLabel(seconds: number): string {
@@ -152,7 +158,7 @@ export default function AdminPage() {
   const [durAmount, setDurAmount] = useState(5);
   const [durUnit, setDurUnit] = useState<DurUnit>("min");
   const [qty, setQty] = useState(1);
-  const [category, setCategory] = useState("standard");
+  const [category, setCategory] = useState("spoofer");
   const [generated, setGenerated] = useState<string[]>([]);
   const [note, setNote] = useState("");
   const [tick, setTick] = useState(0);
@@ -587,7 +593,7 @@ export default function AdminPage() {
                       </code>
                     </td>
                     <td className="hide-mobile">
-                      <span className="badge active">{l.category}</span>
+                      <span className="badge active">{productLabel(l.category)}</span>
                     </td>
                     <td className="hide-mobile">{l.duration_label}</td>
                     <td>
@@ -780,11 +786,11 @@ export default function AdminPage() {
           </div>
           <form onSubmit={generateKeys} className="form-grid">
             <div>
-              <label>Category</label>
+              <label>Product</label>
               <select value={category} onChange={(e) => setCategory(e.target.value)}>
-                {CATEGORIES.map((c) => (
-                  <option key={c} value={c}>
-                    {c}
+                {PRODUCTS.map((p) => (
+                  <option key={p.id} value={p.id}>
+                    {p.label} ({p.prefix}-…)
                   </option>
                 ))}
               </select>
@@ -834,14 +840,14 @@ export default function AdminPage() {
 
       {tab === "active" && (
         <section className="card">
-          <h2 className="section-title">Active licenses by category</h2>
+          <h2 className="section-title">Active licenses by product</h2>
           {activeByCategory.length === 0 ? (
             <p className="muted">No active licenses right now.</p>
           ) : (
             activeByCategory.map(([cat, rows]) => (
               <div key={cat} className="category-block">
                 <h3>
-                  {cat} ({rows.length})
+                  {productLabel(cat)} ({rows.length})
                 </h3>
                 {licenseTable(rows)}
               </div>
@@ -867,7 +873,7 @@ export default function AdminPage() {
         <section className="card">
           <h2 className="section-title">Print license keys</h2>
           <p className="subtitle" style={{ marginTop: 0 }}>
-            Format: <code>1DAY - HARVEY-XXXXX-XXXXX</code> — 3 keys per row. Each duration is a separate
+            Format: <code>1DAY - SPF-XXXXX-XXXXX</code> — 3 keys per row. Each duration is a separate
             paragraph (1DAY block, then 2DAY block, etc.).
           </p>
           {unusedByDuration.length === 0 && generated.length === 0 ? (
@@ -952,7 +958,7 @@ export default function AdminPage() {
                       </td>
                       <td>{r.username ?? "—"}</td>
                       <td className="hide-mobile">
-                        <span className="badge expired">{r.category}</span>
+                        <span className="badge expired">{productLabel(r.category)}</span>
                       </td>
                       <td className="hide-mobile">
                         <code className="hwid-full">{r.hwid_hash ?? "—"}</code>

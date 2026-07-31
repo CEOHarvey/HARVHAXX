@@ -56,7 +56,7 @@ public sealed class ApiClient : IDisposable
 
     public async Task<LicenseStatusResult> ActivateAsync(string licenseKey, string hwidHash, CancellationToken ct = default)
     {
-        var res = await _http.PostAsJsonAsync("license/activate", new { license_key = licenseKey, hwid_hash = hwidHash }, ct);
+        var res = await _http.PostAsJsonAsync("license/activate", new { license_key = licenseKey, hwid_hash = hwidHash, product = _settings.Product }, ct);
         await EnsureSuccess(res);
         var body = await res.Content.ReadFromJsonAsync<LicenseStatusResult>(cancellationToken: ct);
         return body ?? throw new InvalidOperationException("Empty response");
@@ -64,7 +64,7 @@ public sealed class ApiClient : IDisposable
 
     public async Task<LicenseStatusResult> ValidateAsync(string hwidHash, CancellationToken ct = default)
     {
-        var res = await _http.PostAsJsonAsync("license/validate", new { hwid_hash = hwidHash }, ct);
+        var res = await _http.PostAsJsonAsync("license/validate", new { hwid_hash = hwidHash, product = _settings.Product }, ct);
         await EnsureSuccess(res);
         var body = await res.Content.ReadFromJsonAsync<LicenseStatusResult>(cancellationToken: ct);
         return body ?? throw new InvalidOperationException("Empty response");
@@ -113,4 +113,5 @@ public sealed class LicenseStatusResult
     [JsonPropertyName("expires_at")] public DateTime? ExpiresAt { get; set; }
     [JsonPropertyName("seconds_left")] public int SecondsLeft { get; set; }
     [JsonPropertyName("message")] public string Message { get; set; } = "";
+    [JsonPropertyName("product")] public string? Product { get; set; }
 }

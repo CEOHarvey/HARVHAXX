@@ -30,10 +30,12 @@ class TokenResponse(BaseModel):
 class ActivateRequest(BaseModel):
     license_key: str
     hwid_hash: str = Field(min_length=32, max_length=128)
+    product: str | None = Field(default=None, max_length=64)
 
 
 class ValidateRequest(BaseModel):
     hwid_hash: str = Field(min_length=32, max_length=128)
+    product: str | None = Field(default=None, max_length=64)
 
 
 class LicenseStatusResponse(BaseModel):
@@ -42,6 +44,7 @@ class LicenseStatusResponse(BaseModel):
     expires_at: datetime | None = None
     seconds_left: int = 0
     message: str = ""
+    product: str | None = None
 
 
 class PlayerBindRequest(BaseModel):

@@ -10,7 +10,7 @@ from app.discord_notify import notify_hwid_reset
 from app.duration_util import format_duration
 from app.expiry_util import is_expired, mark_expired_and_notify
 from app.hwid_util import HWID_RESET_PENDING, is_hwid_pending_reset
-from app.license_util import generate_license_key
+from app.license_util import generate_license_key, normalize_product
 from app.hwid_bind_util import add_approved_hwid, list_approved_hwids
 from app.models import (
     Activation,
@@ -71,10 +71,10 @@ def generate_licenses(
 ):
     created = []
     legacy_days = max(1, body.duration_seconds // 86400)
-    category = (body.category or "standard").strip().lower()[:64] or "standard"
+    category = normalize_product(body.category)
     for _ in range(body.quantity):
         for _attempt in range(20):
-            key = generate_license_key()
+            key = generate_license_key(category)
             if not db.query(License).filter(License.license_key == key).first():
                 break
         else:

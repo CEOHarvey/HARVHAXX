@@ -9,6 +9,7 @@ from app.discord_notify import notify_license_activated, notify_new_pc_bound
 from app.expiry_util import is_expired, mark_expired_and_notify, seconds_left
 from app.hwid_bind_util import hwid_allowed_for_activation
 from app.hwid_util import is_hwid_pending_reset
+from app.license_util import normalize_product
 from app.models import Activation, License, LicenseStatus, User
 from app.schemas import ActivateRequest, LicenseStatusResponse, ValidateRequest
 from app.session_util import touch_session
@@ -38,12 +39,13 @@ def _response_from_activation(db: Session, act: Activation | None) -> LicenseSta
     left = seconds_left(act)
 
     lic = act.license
+    product = lic.category
     if lic.status == LicenseStatus.revoked:
-        return LicenseStatusResponse(valid=False, status="revoked", expires_at=expires, seconds_left=0, message="License revoked")
+        return LicenseStatusResponse(valid=False, status="revoked", expires_at=expires, seconds_left=0, product=product, message="License revoked")
 
     if is_expired(act) or lic.status == LicenseStatus.expired:
         mark_expired_and_notify(db, act)
-        return LicenseStatusResponse(valid=False, status="expired", expires_at=expires, seconds_left=0, message="License expired")
+        return LicenseStatusResponse(valid=False, status="expired", expires_at=expires, seconds_left=0, product=product, message="License expired")
 
     if lic.status != LicenseStatus.active:
         lic.status = LicenseStatus.active
@@ -53,6 +55,7 @@ def _response_from_activation(db: Session, act: Activation | None) -> LicenseSta
         status="active",
         expires_at=expires,
         seconds_left=left,
+        product=product,
         message="OK",
     )
 
@@ -65,6 +68,13 @@ def activate(body: ActivateRequest, user: User = Depends(get_current_user), db: 
         raise HTTPException(status_code=status.HTTP_404_NOT_FOUND, detail="Invalid license key")
     if lic.status == LicenseStatus.revoked:
         raise HTTPException(status_code=status.HTTP_400_BAD_REQUEST, detail="License revoked")
+    if body.product is not None:
+        want = normalize_product(body.product)
+        if lic.category != want:
+            raise HTTPException(
+                status_code=status.HTTP_400_BAD_REQUEST,
+                detail=f"This key is for {lic.category}, not {want}. Use it on the {lic.category} loader.",
+            )
 
     existing = db.query(Activation).options(joinedload(Activation.license), joinedload(Activation.user)).filter(
         Activation.license_id == lic.id
@@ -182,6 +192,15 @@ def validate(body: ValidateRequest, user: User = Depends(get_current_user), db: 
     act = _active_activation(db, user)
     if not act:
         return LicenseStatusResponse(valid=False, status="none", message="No activation found")
+    if body.product is not None:
+        want = normalize_product(body.product)
+        if act.license.category != want:
+            return LicenseStatusResponse(
+                valid=False,
+                status="product_mismatch",
+                product=act.license.category,
+                message=f"Your active license is for {act.license.category}, not {want}.",
+            )
     if is_hwid_pending_reset(act.hwid_hash):
         act.hwid_hash = body.hwid_hash
         notify_new_pc_bound(act)
