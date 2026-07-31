@@ -16,3 +16,11 @@ client/**/publish/
 *.user
 .vs/
 .DS_Store
+
+# Build artifacts & archives (never commit — bloat + may contain secrets)
+*.rar
+build/
+dist/
+client/**/dist/
+*.spec
+UpgradeLog*.htm
