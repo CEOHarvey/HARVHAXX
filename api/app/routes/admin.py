@@ -31,6 +31,7 @@ from app.schemas import (
     GenerateLicensesRequest,
     HwidRequestRow,
     LicenseRow,
+    PlayerResetRequest,
     SessionRow,
     TokenResponse,
     UserHwidRow,
@@ -197,6 +198,19 @@ def reset_hwid(license_id: int, admin: str = Depends(get_admin), db: Session = D
     db.commit()
     notify_hwid_reset(act, old_hwid=old_hwid, admin_username=admin)
     return {"ok": True, "message": "HWID reset — customer can bind new PC on next loader login"}
+
+
+@router.post("/players/reset")
+def reset_bound_player(body: PlayerResetRequest, _: str = Depends(get_admin), db: Session = Depends(get_db)):
+    """Clear a user's bound in-game name so they can bind a new one on next Load Hacks."""
+    user = db.query(User).filter(User.username == body.username).first()
+    if not user:
+        raise HTTPException(status_code=status.HTTP_404_NOT_FOUND, detail="User not found")
+    old = user.bound_player_name
+    user.bound_player_name = None
+    user.bound_player_at = None
+    db.commit()
+    return {"ok": True, "message": f"Bound player cleared (was: {old or '—'})"}
 
 
 @router.post("/sessions/{user_id}/kick")

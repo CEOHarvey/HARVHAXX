@@ -391,6 +391,18 @@ export default function AdminPage() {
     else await loadAll(token);
   }
 
+  async function resetPlayer(username?: string | null) {
+    if (!token || !username) return;
+    if (!confirm(`Reset bound in-game name for ${username}? They can bind a new one on next Load Hacks.`)) return;
+    const res = await fetch(`${API}/admin/players/reset`, {
+      method: "POST",
+      headers: { "Content-Type": "application/json", Authorization: `Bearer ${token}` },
+      body: JSON.stringify({ username }),
+    });
+    if (!res.ok) setError(await parseApiError(res));
+    else await loadAll(token);
+  }
+
   async function kickSession(userId: number) {
     if (!token) return;
     if (!confirm("Kick session? User can log in on another approved PC.")) return;
@@ -627,6 +639,11 @@ export default function AdminPage() {
                               {l.hwid_hash && l.status !== "revoked" && (
                                 <button type="button" className="ghost" onClick={() => resetHwid(l.id)}>
                                   Reset HWID
+                                </button>
+                              )}
+                              {l.bound_player_name && l.status !== "revoked" && (
+                                <button type="button" className="ghost" onClick={() => resetPlayer(l.username)}>
+                                  Reset name
                                 </button>
                               )}
                               {l.status !== "revoked" && (

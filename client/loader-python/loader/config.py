@@ -9,6 +9,7 @@ from loader.paths import app_dir, resource_path
 class Settings:
     api_base_url: str = "https://harvhaxx-2.onrender.com"
     support_url: str = "https://harvhaxx.vercel.app"
+    product: str = "knivesout"
     hwid_salt: str = "change-this-salt-in-production"
     dll_path: str = "harvey.dll"
     use_embedded_payload: bool = True
@@ -26,13 +27,14 @@ class Settings:
         data: dict = {}
         bundled = resource_path("appsettings.json")
         if bundled.is_file():
-            data = json.loads(bundled.read_text(encoding="utf-8"))
+            data = json.loads(bundled.read_text(encoding="utf-8-sig"))
         external = app_dir() / "appsettings.json"
         if external.is_file():
-            data = {**data, **json.loads(external.read_text(encoding="utf-8"))}
+            data = {**data, **json.loads(external.read_text(encoding="utf-8-sig"))}
         return cls(
             api_base_url=data.get("ApiBaseUrl", cls.api_base_url),
             support_url=data.get("SupportUrl", cls.support_url),
+            product=str(data.get("Product", cls.product)).strip().lower() or cls.product,
             hwid_salt=data.get("HwidSalt", cls.hwid_salt),
             dll_path=data.get("DllPath", cls.dll_path),
             use_embedded_payload=data.get("UseEmbeddedPayload", True),

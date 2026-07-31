@@ -146,6 +146,18 @@ class LoaderApp:
         self.reg_email = theme.make_entry(f)
         theme.field_label(f, "Password").pack(fill=tk.X)
         self.reg_pass = theme.make_entry(f, show="•")
+        theme.field_label(f, "License key").pack(fill=tk.X)
+        self.reg_license = theme.make_entry(f)
+        tk.Label(
+            f,
+            text="No key yet? Chat the developer below to get one.",
+            bg=theme.CARD,
+            fg=theme.MUTED,
+            font=theme.FONT_CAPTION,
+            anchor=tk.W,
+            justify=tk.LEFT,
+            wraplength=300,
+        ).pack(fill=tk.X, pady=(3, 0))
         self.reg_err = theme.make_message(f)
         self.btn_register_submit = theme.accent_button(f, "Register", self._register)
         theme.ghost_button(f, "Back to sign in", lambda: self._show_panel("login"))
@@ -236,6 +248,20 @@ class LoaderApp:
         _, self.bound_player_lbl, self.bound_player_sub = theme.player_bind_panel(
             dash, on_refresh=self._refresh_bound_player
         )
+        self.btn_reset_player = tk.Button(
+            dash,
+            text="Request name reset",
+            command=self._request_player_reset,
+            bg=theme.INPUT_BG,
+            fg=theme.ACCENT_SOFT,
+            activebackground=theme.INPUT_BG,
+            activeforeground=theme.ACCENT,
+            font=theme.FONT_CAPTION,
+            relief=tk.FLAT,
+            cursor="hand2",
+            borderwidth=0,
+        )
+        self.btn_reset_player.pack(anchor=tk.CENTER, pady=(2, 0))
 
         tk.Frame(dash, bg=theme.BORDER, height=1).pack(fill=tk.X, pady=(6, 0))
         theme.section_label(dash, "Extend").pack(fill=tk.X, pady=(4, 0))
@@ -355,13 +381,14 @@ class LoaderApp:
         username = self.reg_user.get().strip()
         email = self.reg_email.get().strip()
         password = self.reg_pass.get()
-        if not username or not email or not password:
-            self.reg_err.config(text="Fill in all fields.", fg=theme.DANGER)
+        license_key = self.reg_license.get().strip().upper()
+        if not username or not email or not password or not license_key:
+            self.reg_err.config(text="Fill in all fields, including your license key.", fg=theme.DANGER)
             return
         self.reg_err.config(text="")
 
         def work():
-            token = self.api.register(username, email, password, self.hwid_hash)
+            token = self.api.register(username, email, password, self.hwid_hash, license_key)
             self.api.set_token(token.access_token)
             status = self.api.validate(self.hwid_hash)
             return token, status
@@ -468,6 +495,26 @@ class LoaderApp:
             self._update_bound_player_labels(account)
 
         self._run_async(work, ok)
+
+    def _request_player_reset(self) -> None:
+        if not self.token:
+            return
+        if not (self.bound_player_name or "").strip():
+            self.main_msg.config(text="No bound player name yet.", fg=theme.MUTED)
+            return
+        self.main_msg.config(text="Sending reset request...", fg=theme.ACCENT)
+
+        def work():
+            return self.api.request_player_reset()
+
+        def ok(message: str):
+            self.main_msg.config(text=message, fg=theme.SUCCESS)
+
+        self._run_async(
+            work,
+            ok,
+            lambda e: self.main_msg.config(text=self._friendly_auth_error(e), fg=theme.DANGER),
+        )
 
     def _extend_license(self) -> None:
         key = self.extend_key.get().strip().upper()

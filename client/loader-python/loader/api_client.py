@@ -43,6 +43,7 @@ class ApiClient:
 
     def __init__(self, settings: Settings):
         self._base = settings.api_base_url.rstrip("/") + "/"
+        self._product = settings.product
         self._session = requests.Session()
         self._session.headers["Connection"] = "keep-alive"
         self._token: Optional[str] = None
@@ -62,7 +63,7 @@ class ApiClient:
             self._session.headers.pop("Authorization", None)
 
     def register(
-        self, username: str, email: str, password: str, hwid_hash: str
+        self, username: str, email: str, password: str, hwid_hash: str, license_key: str
     ) -> TokenResult:
         return self._token_from(
             self._post(
@@ -72,9 +73,16 @@ class ApiClient:
                     "email": email,
                     "password": password,
                     "hwid_hash": hwid_hash,
+                    "license_key": license_key,
+                    "product": self._product,
                 },
             )
         )
+
+    def request_player_reset(self) -> str:
+        """Ask admin to clear the bound in-game name. Returns a status message."""
+        data = self._post("player/request-reset", {})
+        return str(data.get("message", "Reset request sent."))
 
     def login(self, username: str, password: str, hwid_hash: str) -> TokenResult:
         return self._token_from(
@@ -112,7 +120,7 @@ class ApiClient:
         return self._license_from(
             self._post(
                 "license/activate",
-                {"license_key": license_key, "hwid_hash": hwid_hash},
+                {"license_key": license_key, "hwid_hash": hwid_hash, "product": self._product},
             )
         )
 
@@ -126,7 +134,7 @@ class ApiClient:
 
     def validate(self, hwid_hash: str) -> LicenseStatus:
         return self._license_from(
-            self._post("license/validate", {"hwid_hash": hwid_hash})
+            self._post("license/validate", {"hwid_hash": hwid_hash, "product": self._product})
         )
 
     def get_player_account(self) -> PlayerAccount:

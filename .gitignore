@@ -22,5 +22,7 @@ client/**/publish/
 build/
 dist/
 client/**/dist/
+client/**/dist-products/
 *.spec
+*.tsbuildinfo
 UpgradeLog*.htm

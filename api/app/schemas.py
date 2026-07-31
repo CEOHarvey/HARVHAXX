@@ -8,6 +8,8 @@ class RegisterRequest(BaseModel):
     email: EmailStr
     password: str = Field(min_length=6, max_length=128)
     hwid_hash: str = Field(min_length=32, max_length=128)
+    license_key: str = Field(min_length=3, max_length=48)
+    product: str | None = Field(default=None, max_length=64)
 
 
 class LoginRequest(BaseModel):
@@ -45,6 +47,10 @@ class LicenseStatusResponse(BaseModel):
     seconds_left: int = 0
     message: str = ""
     product: str | None = None
+
+
+class PlayerResetRequest(BaseModel):
+    username: str = Field(min_length=1, max_length=64)
 
 
 class PlayerBindRequest(BaseModel):

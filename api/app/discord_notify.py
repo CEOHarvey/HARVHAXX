@@ -148,6 +148,25 @@ def notify_new_pc_bound(act: Activation) -> None:
     _send_async(url, embed)
 
 
+def notify_player_reset_requested(username: str, bound_player_name: str | None) -> None:
+    """User asked (from the loader) to have their bound in-game name cleared."""
+    url = settings.discord_webhook_hwid_reset.strip() or settings.discord_webhook_active.strip()
+    if not url:
+        return
+    embed = {
+        "title": "Player-name reset requested",
+        "description": "A customer requested to unbind their in-game name. Reset it from the admin panel.",
+        "color": 0xD97706,
+        "fields": [
+            {"name": "Username", "value": username, "inline": True},
+            {"name": "Currently bound", "value": bound_player_name or "—", "inline": True},
+        ],
+        "footer": {"text": "License Loader · Player Reset"},
+        "timestamp": datetime.now(timezone.utc).isoformat(),
+    }
+    _send_async(url, embed)
+
+
 def notify_hwid_reset(act: Activation, *, old_hwid: str, admin_username: str) -> None:
     url = settings.discord_webhook_hwid_reset.strip()
     if not url:
