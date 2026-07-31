@@ -192,15 +192,8 @@ def validate(body: ValidateRequest, user: User = Depends(get_current_user), db: 
     act = _active_activation(db, user)
     if not act:
         return LicenseStatusResponse(valid=False, status="none", message="No activation found")
-    if body.product is not None:
-        want = normalize_product(body.product)
-        if act.license.category != want:
-            return LicenseStatusResponse(
-                valid=False,
-                status="product_mismatch",
-                product=act.license.category,
-                message=f"Your active license is for {act.license.category}, not {want}.",
-            )
+    # Product is enforced when a key is redeemed (register + activate), not on every
+    # login. An already-active, non-expired license logs straight into the dashboard.
     if is_hwid_pending_reset(act.hwid_hash):
         act.hwid_hash = body.hwid_hash
         notify_new_pc_bound(act)
